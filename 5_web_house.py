@@ -124,24 +124,64 @@ if True:
     if 'map_center' not in st.session_state:
         st.session_state['map_center'] = [25.00393, 121.51231]
 
-    # --- 頂端導航列 (僅保留 GPS 定位) ---
-    from streamlit_geolocation import streamlit_geolocation
-    
-    st.markdown("<div style='margin-bottom: 5px; color: #666; font-size: 14px;'>📍 點擊下方按鈕獲取目前手機 GPS 位置：</div>", unsafe_allow_html=True)
-    loc = streamlit_geolocation()
-    
-    if loc and loc.get('latitude') is not None and loc.get('longitude') is not None:
-        gps_lat = loc['latitude']
-        gps_lng = loc['longitude']
-        # 防止每次 rerun 都被舊的 GPS 觸發無意義更新
-        if st.session_state.get('last_gps') != [gps_lat, gps_lng]:
-            st.session_state['map_center'] = [gps_lat, gps_lng]
-            st.session_state['last_gps'] = [gps_lat, gps_lng]
+    if 'pending_center' not in st.session_state:
+        st.session_state['pending_center'] = None
+    if 'last_processed_click' not in st.session_state:
+        st.session_state['last_processed_click'] = None
+
+    c_lat, c_lng = st.session_state['map_center']
+
+    # --- 極速攔截地圖點擊事件（從 session_state 直接讀取，省去一次 rerun 延遲） ---
+    if "image_map" in st.session_state and st.session_state["image_map"]:
+        map_state = st.session_state["image_map"]
+        if map_state.get("last_clicked"):
+            click_lat = map_state["last_clicked"]["lat"]
+            click_lng = map_state["last_clicked"]["lng"]
+            current_click = [click_lat, click_lng]
+            
+            # 確保同一個點擊事件只處理一次
+            if st.session_state['last_processed_click'] != current_click:
+                st.session_state['last_processed_click'] = current_click
+                # 計算距離
+                dist_from_center = (((click_lat - c_lat) * 111) ** 2 + ((click_lng - c_lng) * 100) ** 2) ** 0.5
+                if dist_from_center > 0.5:
+                    st.session_state['pending_center'] = current_click
+
+    # 定義真正的彈出視窗 (Modal Dialog)
+    if hasattr(st, "dialog"):
+        @st.dialog("移動搜尋中心")
+        def show_move_dialog():
+            st.write("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
+            col_btn1, col_btn2 = st.columns(2)
+            if col_btn1.button("✅ 確認移動", use_container_width=True):
+                st.session_state['map_center'] = st.session_state['pending_center']
+                st.session_state['pending_center'] = None
+                st.rerun()
+            if col_btn2.button("❌ 取消", use_container_width=True):
+                st.session_state['pending_center'] = None
+                st.rerun()
+    else:
+        # Fallback for older Streamlit versions
+        def show_move_dialog():
+            st.warning("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
+            col_btn1, col_btn2, _ = st.columns([1, 1, 3])
+            if col_btn1.button("✅ 確認移動", use_container_width=True):
+                st.session_state['map_center'] = st.session_state['pending_center']
+                st.session_state['pending_center'] = None
+                st.rerun()
+            if col_btn2.button("❌ 取消", use_container_width=True):
+                st.session_state['pending_center'] = None
+                st.rerun()
+
+    # --- 提示視窗：若有未確認的移動請求 ---
+    if st.session_state['pending_center']:
+        show_move_dialog()
 
     c_lat, c_lng = st.session_state['map_center']
 
     # 以 session_state 內的中心點建立地圖
     m = folium.Map(location=[c_lat, c_lng], zoom_start=18, min_zoom=18, max_zoom=18, tiles="OpenStreetMap")
+    plugins.LocateControl(auto_start=False).add_to(m)
     
     # 載入 FontAwesome 6 的圖庫 (因為 fa-cat 是新版圖庫才有)
     from folium import Element
@@ -345,14 +385,14 @@ if True:
                 icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
             ).add_to(marker_group)
             
-    map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
+    map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_clicked"])
 
     end_time = time.time()
     st.markdown(f"""
     <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
         ⏱️ 載入時間：{end_time - start_time:.2f} 秒<br>
         📍 顯示物件：{count_rendered} 筆<br>
-        <span style="font-size:12px; color:#aaa;">💡 點擊上方 GPS 按鈕獲取目前位置</span>
+        <span style="font-size:12px; color:#aaa;">💡 點擊地圖空白處可重新定位</span>
     </div>
     """, unsafe_allow_html=True)
 
