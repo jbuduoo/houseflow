@@ -238,97 +238,89 @@ if True:
     """
     m.get_root().header.add_child(folium.Element(mobile_css))
     
-    # 叢集系統：設定 maxClusterRadius=50，讓彼此重疊 (小於 50px) 的標記會自動群集，點擊後以蜘蛛網狀 (spiderfy) 展開，方便手機點擊
-    marker_cluster = MarkerCluster(options={'maxClusterRadius': 50}).add_to(m)
+    import random
+    from collections import defaultdict
+    
+    # 改用普通的 FeatureGroup，不再使用自動叢集
+    marker_group = folium.FeatureGroup(name="物件點位").add_to(m)
 
     count_rendered = 0
+    base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
+
+    # 1. 預先過濾與精確座標分群
+    grouped_houses = defaultdict(list)
     for index, row in df.iterrows():
         try:
-            house_loc = [float(row.get('物件緯度', '')), float(row.get('物件經度', ''))]
+            h_lat = float(row.get('物件緯度', ''))
+            h_lng = float(row.get('物件經度', ''))
         except (ValueError, TypeError):
-            house_loc = [None, None]
-            
-        try:
-            res_loc = [float(row.get('戶籍緯度', '')), float(row.get('戶籍經度', ''))]
-        except (ValueError, TypeError):
-            res_loc = [None, None]
-
-        # 地址優先取用「查地址」欄位，若空再退回「物件地址」
-        display_obj_addr = str(row.get('查地址', '')).strip()
-        if not display_obj_addr:
-            display_obj_addr = str(row.get('物件地址', '')).strip()
-
-        display_res_addr = str(row.get('戶籍地址', '')) if str(row.get('戶籍地址', '')) != '' else "待查閱"
-        
-        if house_loc[0] is None:
             continue
             
-        # 距離過濾（寫死 0.5 公里以維持極速載入）
-        dist_km = (((house_loc[0] - c_lat) * 111) ** 2 + ((house_loc[1] - c_lng) * 100) ** 2) ** 0.5
+        dist_km = (((h_lat - c_lat) * 111) ** 2 + ((h_lng - c_lng) * 100) ** 2) ** 0.5
         if dist_km > 0.5:
             continue
             
-        count = visit_counts.get(str(row['ID']), 0)
-        
-        is_overlap = False
-        if res_loc[0] is not None:
-            is_overlap = (abs(house_loc[0] - res_loc[0]) < 0.0001 and abs(house_loc[1] - res_loc[1]) < 0.0001)
+        grouped_houses[(h_lat, h_lng)].append(row)
 
-        img_url = str(row.get('案件首圖', ''))
-        transcript_url = str(row.get('比對地址', ''))
-        web_link = str(row.get('網頁連結', ''))
+    # 2. 處理每一個分群
+    for (h_lat, h_lng), rows in grouped_houses.items():
+        # 解法 A: 加上微小隨機位移 (Jitter)，讓不同群組或稍微靠近的點能錯開
+        jitter_lat = random.uniform(-0.00003, 0.00003)
+        jitter_lng = random.uniform(-0.00003, 0.00003)
+        final_lat = h_lat + jitter_lat
+        final_lng = h_lng + jitter_lng
         
-        try:
-            qty_val = str(row.get('案件數量', '1'))
-            qty_is_multi = (qty_val == '多筆' or (qty_val.isdigit() and int(qty_val) > 1))
-        except:
-            qty_is_multi = False
+        group_size = len(rows)
+        count_rendered += group_size
+        
+        combined_popup_html = "<div style='max-height: 350px; overflow-y: auto; padding-right: 10px;'>"
+        first_display_text = ""
+        res_locations = []
+        
+        for i, row in enumerate(rows):
+            # --- 處理單筆物件的基礎資料 ---
+            try:
+                res_loc = [float(row.get('戶籍緯度', '')), float(row.get('戶籍經度', ''))]
+            except (ValueError, TypeError):
+                res_loc = [None, None]
+
+            display_obj_addr = str(row.get('查地址', '')).strip()
+            if not display_obj_addr:
+                display_obj_addr = str(row.get('物件地址', '')).strip()
+
+            display_res_addr = str(row.get('戶籍地址', '')) if str(row.get('戶籍地址', '')) != '' else "待查閱"
             
-        suffix = " (需比對：多筆)" if qty_is_multi else ""
-        display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對：多筆)').replace('(多筆)', '(需比對：多筆)')
-        
-        type_str = str(row.get('類型', ''))
-        layout_str = str(row.get('格局', ''))
-        # 組合類型與格局顯示文字，若兩者都有則以 | 分隔
-        layout_display = f"{type_str}" + (f" | {layout_str}" if layout_str else "") if type_str else layout_str
-        
-        img_tag = f"<img src='{img_url}' loading='lazy' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
-        links_block = f"""
-            <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
-                <a href='{web_link}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
-                <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>📑 騰本連結</a>
-            </div>
-        """
-        
-        res_addr_html = f"👤 研判戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
+            img_url = str(row.get('案件首圖', ''))
+            transcript_url = str(row.get('比對地址', ''))
+            web_link = str(row.get('網頁連結', ''))
+            
+            try:
+                qty_val = str(row.get('案件數量', '1'))
+                qty_is_multi = (qty_val == '多筆' or (qty_val.isdigit() and int(qty_val) > 1))
+            except:
+                qty_is_multi = False
+                
+            suffix = " (需比對：多筆)" if qty_is_multi else ""
+            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對：多筆)').replace('(多筆)', '(需比對：多筆)')
+            
+            type_str = str(row.get('類型', ''))
+            layout_str = str(row.get('格局', ''))
+            layout_display = f"{type_str}" + (f" | {layout_str}" if layout_str else "") if type_str else layout_str
+            
+            img_tag = f"<img src='{img_url}' loading='lazy' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
+            links_block = f"""
+                <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
+                    <a href='{web_link}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
+                    <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>📑 騰本連結</a>
+                </div>
+            """
+            
+            res_addr_html = f"👤 研判戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
 
-        popup_html = f"""
-            {img_tag}
-            <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
-            <div style='font-size:15px; color:#333; line-height:1.6;'>
-                📍 推估地址：{display_text}<br>
-                {res_addr_html}🏠 房型：{layout_display}<br>
-                💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
-            </div>
-            {links_block}
-        """
-
-        base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
-
-        # --- 紅色物件標記 ---
-        folium.Marker(
-            location=house_loc,
-            popup=folium.Popup(popup_html, max_width=300),
-            tooltip=display_text,
-            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{"🏠" if count==0 else count}</div>', icon_anchor=(19, 19))
-        ).add_to(marker_cluster)
-
-        # --- 綠色戶籍標記 ---
-        if not is_overlap and display_res_addr != "待查閱" and res_loc and res_loc[0] is not None:
-            # 戶籍彈窗 HTML: 直接顯示完整的物件資料，標題改為合併顯示
-            res_popup_html = f"""
+            # --- 單筆物件 Popup HTML ---
+            item_html = f"""
                 {img_tag}
-                <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>
+                <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
                     📍 推估地址：{display_text}<br>
                     {res_addr_html}🏠 房型：{layout_display}<br>
@@ -337,14 +329,58 @@ if True:
                 {links_block}
             """
             
-            folium.Marker(
-                location=res_loc,
-                popup=folium.Popup(res_popup_html, max_width=300),
-                tooltip=display_res_addr,
-                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
-            ).add_to(marker_cluster)
+            if i == 0:
+                first_display_text = display_text
+                
+            combined_popup_html += item_html
+            if i < group_size - 1:
+                combined_popup_html += "<hr style='margin: 15px 0; border: 0; border-top: 1px solid #ddd;'>"
+                
+            # --- 處理戶籍地 (過濾重疊與空值) ---
+            is_overlap = False
+            if res_loc[0] is not None:
+                is_overlap = (abs(h_lat - res_loc[0]) < 0.0001 and abs(h_lng - res_loc[1]) < 0.0001)
+                
+            if not is_overlap and display_res_addr != "待查閱" and res_loc[0] is not None:
+                res_popup_html = item_html.replace(
+                    f"{row['案件名稱']}</span>",
+                    f"{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>"
+                )
+                res_locations.append({
+                    "loc": res_loc,
+                    "html": res_popup_html,
+                    "addr": display_res_addr
+                })
+
+        combined_popup_html += "</div>"
+        
+        # --- 決定合併標記外觀 (解法 B) ---
+        if group_size > 1:
+            marker_text = str(group_size)
+            tooltip_text = f"{first_display_text} 等 (共 {group_size} 筆)"
+        else:
+            visit_count = visit_counts.get(str(rows[0]['ID']), 0)
+            marker_text = "🏠" if visit_count == 0 else str(visit_count)
+            tooltip_text = first_display_text
             
-        count_rendered += 1
+        # 畫出紅色物件標記
+        folium.Marker(
+            location=[final_lat, final_lng],
+            popup=folium.Popup(combined_popup_html, max_width=320),
+            tooltip=tooltip_text,
+            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>', icon_anchor=(19, 19))
+        ).add_to(marker_group)
+        
+        # 畫出綠色戶籍標記 (每個戶籍地也給予獨立微小位移)
+        for res in res_locations:
+            res_lat = res["loc"][0] + random.uniform(-0.00003, 0.00003)
+            res_lng = res["loc"][1] + random.uniform(-0.00003, 0.00003)
+            folium.Marker(
+                location=[res_lat, res_lng],
+                popup=folium.Popup(res["html"], max_width=300),
+                tooltip=res["addr"],
+                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
+            ).add_to(marker_group)
             
     map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_clicked"])
 
