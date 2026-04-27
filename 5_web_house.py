@@ -107,12 +107,93 @@ if os.path.exists(log_path):
     logs_all = pd.read_csv(log_path)
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
-tab1, tab2 = st.tabs(["📍 攻堅地圖", "📋 全員工作清單"])
 
-with tab1:
-    # 直接鎖定比例尺為 16-18，預設中心點改為「中和路466號」
-    m = folium.Map(location=[25.00393, 121.51231], zoom_start=17, min_zoom=16, max_zoom=18, tiles="OpenStreetMap")
+if True:
+    if 'map_center' not in st.session_state:
+        st.session_state['map_center'] = [25.00393, 121.51231]
+    if 'pending_center' not in st.session_state:
+        st.session_state['pending_center'] = None
+    if 'last_processed_click' not in st.session_state:
+        st.session_state['last_processed_click'] = None
+
+    c_lat, c_lng = st.session_state['map_center']
+
+    # --- 極速攔截地圖點擊事件（從 session_state 直接讀取，省去一次 rerun 延遲） ---
+    if "image_map" in st.session_state and st.session_state["image_map"]:
+        map_state = st.session_state["image_map"]
+        if map_state.get("last_clicked"):
+            click_lat = map_state["last_clicked"]["lat"]
+            click_lng = map_state["last_clicked"]["lng"]
+            current_click = [click_lat, click_lng]
+            
+            # 確保同一個點擊事件只處理一次
+            if st.session_state['last_processed_click'] != current_click:
+                st.session_state['last_processed_click'] = current_click
+                # 計算距離
+                dist_from_center = (((click_lat - c_lat) * 111) ** 2 + ((click_lng - c_lng) * 100) ** 2) ** 0.5
+                if dist_from_center > 0.5:
+                    st.session_state['pending_center'] = current_click
+
+    # 定義真正的彈出視窗 (Modal Dialog)
+    if hasattr(st, "dialog"):
+        @st.dialog("移動搜尋中心")
+        def show_move_dialog():
+            st.write("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
+            col_btn1, col_btn2 = st.columns(2)
+            if col_btn1.button("✅ 確認移動", use_container_width=True):
+                st.session_state['map_center'] = st.session_state['pending_center']
+                st.session_state['pending_center'] = None
+                st.rerun()
+            if col_btn2.button("❌ 取消", use_container_width=True):
+                st.session_state['pending_center'] = None
+                st.rerun()
+    else:
+        # Fallback for older Streamlit versions
+        def show_move_dialog():
+            st.warning("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
+            col_btn1, col_btn2, _ = st.columns([1, 1, 3])
+            if col_btn1.button("✅ 確認移動", use_container_width=True):
+                st.session_state['map_center'] = st.session_state['pending_center']
+                st.session_state['pending_center'] = None
+                st.rerun()
+            if col_btn2.button("❌ 取消", use_container_width=True):
+                st.session_state['pending_center'] = None
+                st.rerun()
+
+    # --- 提示視窗：若有未確認的移動請求 ---
+    if st.session_state['pending_center']:
+        show_move_dialog()
+
+    # 以 session_state 內的中心點建立地圖
+    m = folium.Map(location=[c_lat, c_lng], zoom_start=18, min_zoom=18, max_zoom=18, tiles="OpenStreetMap")
     plugins.LocateControl(auto_start=False).add_to(m)
+    
+    # 載入 FontAwesome 6 的圖庫 (因為 fa-cat 是新版圖庫才有)
+    from folium import Element
+    m.get_root().html.add_child(Element('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">'))
+
+    # --- 加入「目前位置」標記與搜尋半徑圈 ---
+    center_icon_html = """
+    <div style='display:flex;align-items:center;justify-content:center;background-color:#333;width:40px;height:40px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);font-size:22px;'>
+        <i class="fa-solid fa-cat" style="color: rgb(255, 212, 59);"></i>
+    </div>
+    """
+    folium.Marker(
+        location=[c_lat, c_lng],
+        tooltip="📍 目前搜尋中心",
+        icon=folium.DivIcon(html=center_icon_html, icon_anchor=(17, 17))
+    ).add_to(m)
+
+    folium.Circle(
+        location=[c_lat, c_lng],
+        radius=500,  # 0.5 公里 = 500 公尺
+        color="#3186cc",
+        fill=True,
+        fill_color="#3186cc",
+        fill_opacity=0.1,
+        tooltip="🔵 範圍內點擊無效 (請點擊圈外來移動)",
+        interactive=True
+    ).add_to(m)
 
     map_id = m.get_name()
     # 升級版跳轉：飛過去 -> 找坐標 -> 開彈窗
@@ -149,6 +230,7 @@ with tab1:
     # 叢集系統，在小比例尺解決多點卡頓問題；放大到 18 (單棟視角) 時強制全數解開群集
     marker_cluster = MarkerCluster(options={'disableClusteringAtZoom': 18}).add_to(m)
 
+    count_rendered = 0
     for index, row in df.iterrows():
         try:
             house_loc = [float(row.get('物件緯度', '')), float(row.get('物件經度', ''))]
@@ -168,6 +250,11 @@ with tab1:
         display_res_addr = str(row.get('戶籍地址', '')) if str(row.get('戶籍地址', '')) != '' else "待查閱"
         
         if house_loc[0] is None:
+            continue
+            
+        # 距離過濾（寫死 0.5 公里以維持極速載入）
+        dist_km = (((house_loc[0] - c_lat) * 111) ** 2 + ((house_loc[1] - c_lng) * 100) ** 2) ** 0.5
+        if dist_km > 0.5:
             continue
             
         count = visit_counts.get(str(row['ID']), 0)
@@ -203,18 +290,14 @@ with tab1:
         """
         
         res_addr_html = f"👤 研判戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
-        update_time = str(row.get('更新時間', ''))
-        if len(update_time) >= 10:
-            update_time = update_time[:10]
-            
+
         popup_html = f"""
             {img_tag}
             <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
             <div style='font-size:15px; color:#333; line-height:1.6;'>
                 📍 推估地址：{display_text}<br>
                 {res_addr_html}🏠 房型：{layout_display}<br>
-                💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F<br>
-                🕒 更新：{update_time}
+                💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
             </div>
             {links_block}
         """
@@ -225,8 +308,8 @@ with tab1:
         folium.Marker(
             location=house_loc,
             popup=folium.Popup(popup_html, max_width=300),
-            tooltip=f"{row['案件名稱']}",
-            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:42px;height:42px;font-size:18px;">{"🏠" if count==0 else count}</div>', icon_anchor=(21, 21))
+            tooltip=f"地址：{display_text}",
+            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:28px;height:28px;font-size:12px;">{"🏠" if count==0 else count}</div>', icon_anchor=(14, 14))
         ).add_to(marker_cluster)
 
         # --- 綠色戶籍標記 ---
@@ -238,8 +321,7 @@ with tab1:
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
                     📍 推估地址：{display_text}<br>
                     {res_addr_html}🏠 房型：{layout_display}<br>
-                    💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F<br>
-                    🕒 更新：{update_time}
+                    💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
                 {links_block}
             """
@@ -247,19 +329,20 @@ with tab1:
             folium.Marker(
                 location=res_loc,
                 popup=folium.Popup(res_popup_html, max_width=300),
-                tooltip="屋主戶籍",
-                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:18px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
+                tooltip=f"戶籍地：{display_res_addr}",
+                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:25px;height:25px;font-size:12px;"><i class="fa fa-user"></i></div>', icon_anchor=(13, 13))
             ).add_to(marker_cluster)
             
-    st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
+        count_rendered += 1
+            
+    map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_clicked"])
 
     end_time = time.time()
     st.markdown(f"""
     <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
-        ⏱️ 載入時間：{end_time - start_time:.2f} 秒
+        ⏱️ 載入時間：{end_time - start_time:.2f} 秒<br>
+        📍 顯示物件：{count_rendered} 筆<br>
+        <span style="font-size:12px; color:#aaa;">💡 點擊地圖空白處可重新定位</span>
     </div>
     """, unsafe_allow_html=True)
 
-with tab2:
-    # 進行字串強制轉換，防堵 PyArrow 因為經緯度欄位夾雜空字串而導致的渲染崩潰
-    st.dataframe(df_raw.astype(str), width="stretch", height=600)
