@@ -185,7 +185,7 @@ if True:
     # 修改定位按鈕圖示與顏色
     plugins.LocateControl(
         auto_start=False, 
-        icon='fa-sharp fa-regular fa-location-arrow',
+        icon='fa-solid fa-location-arrow',
         iconLoading='fa-solid fa-spinner fa-spin'
     ).add_to(m)
     
