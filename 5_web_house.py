@@ -203,7 +203,6 @@ if True:
         fill=True,
         fill_color="#3186cc",
         fill_opacity=0.1,
-        tooltip="🔵 範圍內點擊無效 (請點擊圈外來移動)",
         interactive=True
     ).add_to(m)
 
@@ -320,7 +319,7 @@ if True:
         folium.Marker(
             location=house_loc,
             popup=folium.Popup(popup_html, max_width=300),
-            tooltip=f"地址：{display_text}",
+            tooltip=display_text,
             icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:28px;height:28px;font-size:12px;">{"🏠" if count==0 else count}</div>', icon_anchor=(14, 14))
         ).add_to(marker_cluster)
 
