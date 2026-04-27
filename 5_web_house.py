@@ -123,62 +123,43 @@ if os.path.exists(log_path):
 if True:
     if 'map_center' not in st.session_state:
         st.session_state['map_center'] = [25.00393, 121.51231]
-    if 'pending_center' not in st.session_state:
-        st.session_state['pending_center'] = None
-    if 'last_processed_click' not in st.session_state:
-        st.session_state['last_processed_click'] = None
+
+    # --- 頂端導航列 (GPS + 搜尋) ---
+    from streamlit_geolocation import streamlit_geolocation
+    
+    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+    nav_col1, nav_col2 = st.columns([3, 1])
+    with nav_col1:
+        search_query = st.text_input("🔍 搜尋地址或社區：", placeholder="輸入路名後按 Enter...", label_visibility="collapsed")
+        if search_query:
+            match = df_raw[df_raw['物件地址'].astype(str).str.contains(search_query, na=False) | 
+                           df_raw['查地址'].astype(str).str.contains(search_query, na=False) | 
+                           df_raw['案件名稱'].astype(str).str.contains(search_query, na=False)]
+            if not match.empty:
+                try:
+                    new_lat = float(match.iloc[0]['物件緯度'])
+                    new_lng = float(match.iloc[0]['物件經度'])
+                    st.session_state['map_center'] = [new_lat, new_lng]
+                    st.success(f"已定位至：{match.iloc[0]['案件名稱']}")
+                except:
+                    pass
+            else:
+                st.warning("⚠️ 找不到相符的物件，請嘗試其他關鍵字。")
+                
+    with nav_col2:
+        loc = streamlit_geolocation()
+        if loc and loc.get('latitude') is not None and loc.get('longitude') is not None:
+            gps_lat = loc['latitude']
+            gps_lng = loc['longitude']
+            # 防止每次 rerun 都被舊的 GPS 覆蓋搜尋結果
+            if st.session_state.get('last_gps') != [gps_lat, gps_lng]:
+                st.session_state['map_center'] = [gps_lat, gps_lng]
+                st.session_state['last_gps'] = [gps_lat, gps_lng]
 
     c_lat, c_lng = st.session_state['map_center']
 
-    # --- 極速攔截地圖點擊事件（從 session_state 直接讀取，省去一次 rerun 延遲） ---
-    if "image_map" in st.session_state and st.session_state["image_map"]:
-        map_state = st.session_state["image_map"]
-        if map_state.get("last_clicked"):
-            click_lat = map_state["last_clicked"]["lat"]
-            click_lng = map_state["last_clicked"]["lng"]
-            current_click = [click_lat, click_lng]
-            
-            # 確保同一個點擊事件只處理一次
-            if st.session_state['last_processed_click'] != current_click:
-                st.session_state['last_processed_click'] = current_click
-                # 計算距離
-                dist_from_center = (((click_lat - c_lat) * 111) ** 2 + ((click_lng - c_lng) * 100) ** 2) ** 0.5
-                if dist_from_center > 0.5:
-                    st.session_state['pending_center'] = current_click
-
-    # 定義真正的彈出視窗 (Modal Dialog)
-    if hasattr(st, "dialog"):
-        @st.dialog("移動搜尋中心")
-        def show_move_dialog():
-            st.write("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
-            col_btn1, col_btn2 = st.columns(2)
-            if col_btn1.button("✅ 確認移動", use_container_width=True):
-                st.session_state['map_center'] = st.session_state['pending_center']
-                st.session_state['pending_center'] = None
-                st.rerun()
-            if col_btn2.button("❌ 取消", use_container_width=True):
-                st.session_state['pending_center'] = None
-                st.rerun()
-    else:
-        # Fallback for older Streamlit versions
-        def show_move_dialog():
-            st.warning("📍 偵測到點擊新位置，是否要將搜尋中心移動到該處並重新載入？")
-            col_btn1, col_btn2, _ = st.columns([1, 1, 3])
-            if col_btn1.button("✅ 確認移動", use_container_width=True):
-                st.session_state['map_center'] = st.session_state['pending_center']
-                st.session_state['pending_center'] = None
-                st.rerun()
-            if col_btn2.button("❌ 取消", use_container_width=True):
-                st.session_state['pending_center'] = None
-                st.rerun()
-
-    # --- 提示視窗：若有未確認的移動請求 ---
-    if st.session_state['pending_center']:
-        show_move_dialog()
-
     # 以 session_state 內的中心點建立地圖
     m = folium.Map(location=[c_lat, c_lng], zoom_start=18, min_zoom=18, max_zoom=18, tiles="OpenStreetMap")
-    plugins.LocateControl(auto_start=False).add_to(m)
     
     # 載入 FontAwesome 6 的圖庫 (因為 fa-cat 是新版圖庫才有)
     from folium import Element
@@ -382,14 +363,14 @@ if True:
                 icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
             ).add_to(marker_group)
             
-    map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_clicked"])
+    map_result = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
 
     end_time = time.time()
     st.markdown(f"""
     <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
         ⏱️ 載入時間：{end_time - start_time:.2f} 秒<br>
         📍 顯示物件：{count_rendered} 筆<br>
-        <span style="font-size:12px; color:#aaa;">💡 點擊地圖空白處可重新定位</span>
+        <span style="font-size:12px; color:#aaa;">💡 使用上方搜尋框或 GPS 定位切換區域</span>
     </div>
     """, unsafe_allow_html=True)
 
