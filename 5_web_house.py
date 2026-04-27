@@ -194,7 +194,7 @@ if True:
     m.get_root().html.add_child(Element('''
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
         <style>
-            .fa-location-arrow { color: rgb(116, 192, 252) !important; font-size: 18px !important; }
+            .fa-location-arrow { color: rgb(116, 192, 252) !important; font-size: 24px !important; }
         </style>
     '''))
     
