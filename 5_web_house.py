@@ -264,9 +264,9 @@ if True:
 
     # 2. 處理每一個分群
     for (h_lat, h_lng), rows in grouped_houses.items():
-        # 解法 A: 加上微小隨機位移 (Jitter)，讓不同群組或稍微靠近的點能錯開
-        jitter_lat = random.uniform(-0.00003, 0.00003)
-        jitter_lng = random.uniform(-0.00003, 0.00003)
+        # 解法 A: 加上隨機位移 (Jitter)，擴大至正負 15 公尺 (0.00015度)，讓點錯開更明顯
+        jitter_lat = random.uniform(-0.00015, 0.00015)
+        jitter_lng = random.uniform(-0.00015, 0.00015)
         final_lat = h_lat + jitter_lat
         final_lng = h_lng + jitter_lng
         
@@ -373,8 +373,8 @@ if True:
         
         # 畫出綠色戶籍標記 (每個戶籍地也給予獨立微小位移)
         for res in res_locations:
-            res_lat = res["loc"][0] + random.uniform(-0.00003, 0.00003)
-            res_lng = res["loc"][1] + random.uniform(-0.00003, 0.00003)
+            res_lat = res["loc"][0] + random.uniform(-0.00015, 0.00015)
+            res_lng = res["loc"][1] + random.uniform(-0.00015, 0.00015)
             folium.Marker(
                 location=[res_lat, res_lng],
                 popup=folium.Popup(res["html"], max_width=300),
