@@ -320,7 +320,7 @@ if True:
             location=house_loc,
             popup=folium.Popup(popup_html, max_width=300),
             tooltip=display_text,
-            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:28px;height:28px;font-size:12px;">{"🏠" if count==0 else count}</div>', icon_anchor=(14, 14))
+            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{"🏠" if count==0 else count}</div>', icon_anchor=(19, 19))
         ).add_to(marker_cluster)
 
         # --- 綠色戶籍標記 ---
@@ -341,7 +341,7 @@ if True:
                 location=res_loc,
                 popup=folium.Popup(res_popup_html, max_width=300),
                 tooltip=display_res_addr,
-                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:28px;height:28px;font-size:12px;"><i class="fa fa-user"></i></div>', icon_anchor=(14, 14))
+                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
             ).add_to(marker_cluster)
             
         count_rendered += 1
