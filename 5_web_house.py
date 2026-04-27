@@ -7,6 +7,9 @@ import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import time
+
+start_time = time.time()
 
 # --- 設定頁面資訊 ---
 st.set_page_config(page_title="房仲攻堅地圖 (實景排版版)", layout="wide", initial_sidebar_state="expanded")
@@ -133,18 +136,11 @@ with tab1:
     """
     m.get_root().html.add_child(folium.Element(jump_script))
     
-    # 手機版專屬優化：強制覆寫 Leaflet 預設的按鈕大小，讓 X 按鈕變得適合手指點擊
+    # 強制隱藏 Leaflet 預設的關閉按鈕
     mobile_css = """
     <style>
     .leaflet-popup-close-button {
-        font-size: 28px !important;
-        width: 44px !important;
-        height: 44px !important;
-        line-height: 44px !important;
-        color: #333 !important;
-        padding: 5px !important;
-        top: 2px !important;
-        right: 2px !important;
+        display: none !important;
     }
     </style>
     """
@@ -198,7 +194,7 @@ with tab1:
         # 組合類型與格局顯示文字，若兩者都有則以 | 分隔
         layout_display = f"{type_str}" + (f" | {layout_str}" if layout_str else "") if type_str else layout_str
         
-        img_tag = f"<img src='{img_url}' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
+        img_tag = f"<img src='{img_url}' loading='lazy' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
         links_block = f"""
             <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
                 <a href='{web_link}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
@@ -206,21 +202,25 @@ with tab1:
             </div>
         """
         
+        res_addr_html = f"👤 研判戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
+        update_time = str(row.get('更新時間', ''))
+        if len(update_time) >= 10:
+            update_time = update_time[:10]
+            
         popup_html = f"""
             {img_tag}
             <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
             <div style='font-size:15px; color:#333; line-height:1.6;'>
                 📍 推估地址：{display_text}<br>
-                👤 研判戶籍：{display_res_addr}<br>
-                🏠 房型：{layout_display}<br>
+                {res_addr_html}🏠 房型：{layout_display}<br>
                 💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F<br>
-                🕒 更新：{str(row.get('更新時間',''))}
+                🕒 更新：{update_time}
             </div>
             {links_block}
         """
 
         base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
-        
+
         # --- 紅色物件標記 ---
         folium.Marker(
             location=house_loc,
@@ -231,18 +231,17 @@ with tab1:
 
         # --- 綠色戶籍標記 ---
         if not is_overlap and display_res_addr != "待查閱" and res_loc and res_loc[0] is not None:
-            # 戶籍彈窗 HTML: 回歸最穩定的 a 連結跳轉
+            # 戶籍彈窗 HTML: 直接顯示完整的物件資料，標題改為合併顯示
             res_popup_html = f"""
                 {img_tag}
-                <b style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>👤 屋主戶籍地</b>
+                <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
                     📍 推估地址：{display_text}<br>
-                    👤 研判戶籍：{display_res_addr}
+                    {res_addr_html}🏠 房型：{layout_display}<br>
+                    💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F<br>
+                    🕒 更新：{update_time}
                 </div>
-                <a href='javascript:void(0);' onclick='jumpTo({house_loc[0]}, {house_loc[1]})' 
-                   style='display:inline-block; width:90%; text-align:center; margin-top:12px; padding:8px 0; background-color:#ff4b4b; color:white; border-radius:20px; font-size:15px; font-weight:bold; text-decoration:none;'>
-                    🏠 回物件位置
-                </a>
+                {links_block}
             """
             
             folium.Marker(
@@ -253,6 +252,13 @@ with tab1:
             ).add_to(marker_cluster)
             
     st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
+
+    end_time = time.time()
+    st.markdown(f"""
+    <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
+        ⏱️ 載入時間：{end_time - start_time:.2f} 秒
+    </div>
+    """, unsafe_allow_html=True)
 
 with tab2:
     # 進行字串強制轉換，防堵 PyArrow 因為經緯度欄位夾雜空字串而導致的渲染崩潰
