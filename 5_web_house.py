@@ -238,8 +238,8 @@ if True:
     """
     m.get_root().header.add_child(folium.Element(mobile_css))
     
-    # 叢集系統，在小比例尺解決多點卡頓問題；放大到 18 (單棟視角) 時強制全數解開群集
-    marker_cluster = MarkerCluster(options={'disableClusteringAtZoom': 18}).add_to(m)
+    # 叢集系統：設定 maxClusterRadius=50，讓彼此重疊 (小於 50px) 的標記會自動群集，點擊後以蜘蛛網狀 (spiderfy) 展開，方便手機點擊
+    marker_cluster = MarkerCluster(options={'maxClusterRadius': 50}).add_to(m)
 
     count_rendered = 0
     for index, row in df.iterrows():
