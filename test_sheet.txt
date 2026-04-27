@@ -1,0 +1,1 @@
+['2371906', '永平學區電梯2室+車位', 'https://img.hbhousing.com.tw/pictures/A182%2fA182OS222804a.jpg?1777100153', '新北市永和區中山路一段', '1980', '29.47', '電梯', '4', '12', '2房2廳1衛', 'https://www.hbhousing.com.tw/detail/?sn=OS222804', 'https://app.houseflow.tw/HOUSE/ExploreHouseNew?A10OnLineId=2371906', '永和區中山路一段１０６號四樓之二(多筆)', '', '']
