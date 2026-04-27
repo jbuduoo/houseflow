@@ -83,7 +83,13 @@ CREDS_FILE = "houseflow_gheet_key.json.json"
 @st.cache_resource
 def get_gspread_client():
     scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, scope)
+    if "gcp_service_account" in st.secrets:
+        # 供 Streamlit Cloud 雲端部署使用
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        # 供本地端開發使用
+        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, scope)
     return gspread.authorize(creds)
 
 @st.cache_data(ttl=300)
