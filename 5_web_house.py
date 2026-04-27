@@ -340,7 +340,7 @@ if True:
             folium.Marker(
                 location=res_loc,
                 popup=folium.Popup(res_popup_html, max_width=300),
-                tooltip=f"戶籍地：{display_res_addr}",
+                tooltip=display_res_addr,
                 icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:28px;height:28px;font-size:12px;"><i class="fa fa-user"></i></div>', icon_anchor=(14, 14))
             ).add_to(marker_cluster)
             
