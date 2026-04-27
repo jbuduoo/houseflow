@@ -1,0 +1,259 @@
+import streamlit as st
+import pandas as pd
+import folium
+from folium import plugins
+from streamlit_folium import st_folium
+import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
+
+# --- 設定頁面資訊 ---
+st.set_page_config(page_title="房仲攻堅地圖 (實景排版版)", layout="wide", initial_sidebar_state="expanded")
+
+# --- 0. 注入自定義 CSS ---
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    /* 大幅緊縮頁面上方的黃金空白區塊 */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0rem !important;
+    }
+    section[data-testid="stSidebar"] { width: 340px !important; }
+    .st_folium { border: none; border-radius: 0px; }
+    .jump-btn {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 5px 15px;
+        background-color: #ff4b4b;
+        color: white !important;
+        border-radius: 20px;
+        text-decoration: none !important;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    .popup-img {
+        width: 100%;
+        height: 85px;  /* 固定長寬，不讓它無限撐高 */
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    .popup-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 4px;
+        display: block;
+    }
+    .popup-links {
+        margin-top: 10px;
+        border-top: 1px solid #eee;
+        padding-top: 8px;
+        display: flex;
+        gap: 10px;
+    }
+    .popup-links a {
+        font-size: 13px;
+        color: #1976d2 !important;
+        text-decoration: underline !important;
+    }
+    /* 這裡加入閃爍跳動動畫 */
+    @keyframes marker-flash {
+        0%, 100% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.4); filter: brightness(1.2); }
+    }
+    .marker-flash {
+        animation: marker-flash 0.5s ease-in-out 3;
+        z-index: 9999 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 1. Google Sheets 連線 ---
+SHEET_KEY = "1bU4BKbjQgnoNqSK50G4vHgMGBFetHsBrbMyHv2Xc2k0"
+CREDS_FILE = "houseflow_gheet_key.json.json"
+
+@st.cache_resource
+def get_gspread_client():
+    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, scope)
+    return gspread.authorize(creds)
+
+@st.cache_data(ttl=300)
+def load_data_from_gsheet():
+    client = get_gspread_client()
+    sheet = client.open_by_key(SHEET_KEY).sheet1
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
+
+from folium.plugins import MarkerCluster
+
+# --- 2. 主程式流程 ---
+df_raw = load_data_from_gsheet()
+
+# 硬性過濾已委託案件（保持地圖乾淨）
+df = df_raw[~df_raw['是否已委託'].astype(str).str.upper().isin(['Y', 'YES', '是', 'TRUE'])]
+
+visit_counts = {}
+log_path = os.path.join(os.path.dirname(__file__), "houseflow_visit_logs.csv")
+if os.path.exists(log_path):
+    logs_all = pd.read_csv(log_path)
+    visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
+
+tab1, tab2 = st.tabs(["📍 攻堅地圖", "📋 全員工作清單"])
+
+with tab1:
+    # 直接鎖定比例尺為 16-18，預設中心點改為「中和路466號」
+    m = folium.Map(location=[25.00393, 121.51231], zoom_start=17, min_zoom=16, max_zoom=18, tiles="OpenStreetMap")
+    plugins.LocateControl(auto_start=False).add_to(m)
+
+    map_id = m.get_name()
+    # 升級版跳轉：飛過去 -> 找坐標 -> 開彈窗
+    jump_script = f"""
+    <script>
+    function jumpTo(lat, lon) {{
+        var m = window['{map_id}'];
+        if(!m) return;
+        m.flyTo([lat, lon], 18);
+        m.once('moveend', function() {{
+            m.eachLayer(function(layer) {{
+                if (layer.getLatLng && 
+                    Math.abs(layer.getLatLng().lat - lat) < 0.00001 && 
+                    Math.abs(layer.getLatLng().lng - lon) < 0.00001) {{
+                    if (layer.openPopup) layer.openPopup();
+                }}
+            }});
+        }});
+    }}
+    </script>
+    """
+    m.get_root().html.add_child(folium.Element(jump_script))
+    
+    # 手機版專屬優化：強制覆寫 Leaflet 預設的按鈕大小，讓 X 按鈕變得適合手指點擊
+    mobile_css = """
+    <style>
+    .leaflet-popup-close-button {
+        font-size: 28px !important;
+        width: 44px !important;
+        height: 44px !important;
+        line-height: 44px !important;
+        color: #333 !important;
+        padding: 5px !important;
+        top: 2px !important;
+        right: 2px !important;
+    }
+    </style>
+    """
+    m.get_root().header.add_child(folium.Element(mobile_css))
+    
+    # 叢集系統，在小比例尺解決多點卡頓問題；放大到 18 (單棟視角) 時強制全數解開群集
+    marker_cluster = MarkerCluster(options={'disableClusteringAtZoom': 18}).add_to(m)
+
+    for index, row in df.iterrows():
+        try:
+            house_loc = [float(row.get('物件緯度', '')), float(row.get('物件經度', ''))]
+        except (ValueError, TypeError):
+            house_loc = [None, None]
+            
+        try:
+            res_loc = [float(row.get('戶籍緯度', '')), float(row.get('戶籍經度', ''))]
+        except (ValueError, TypeError):
+            res_loc = [None, None]
+
+        # 地址優先取用「查地址」欄位，若空再退回「物件地址」
+        display_obj_addr = str(row.get('查地址', '')).strip()
+        if not display_obj_addr:
+            display_obj_addr = str(row.get('物件地址', '')).strip()
+
+        display_res_addr = str(row.get('戶籍地址', '')) if str(row.get('戶籍地址', '')) != '' else "待查閱"
+        
+        if house_loc[0] is None:
+            continue
+            
+        count = visit_counts.get(str(row['ID']), 0)
+        
+        is_overlap = False
+        if res_loc[0] is not None:
+            is_overlap = (abs(house_loc[0] - res_loc[0]) < 0.0001 and abs(house_loc[1] - res_loc[1]) < 0.0001)
+
+        img_url = str(row.get('案件首圖', ''))
+        transcript_url = str(row.get('比對地址', ''))
+        web_link = str(row.get('網頁連結', ''))
+        
+        try:
+            qty_val = str(row.get('案件數量', '1'))
+            qty_is_multi = (qty_val == '多筆' or (qty_val.isdigit() and int(qty_val) > 1))
+        except:
+            qty_is_multi = False
+            
+        suffix = " (需比對：多筆)" if qty_is_multi else ""
+        display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對：多筆)').replace('(多筆)', '(需比對：多筆)')
+        
+        type_str = str(row.get('類型', ''))
+        layout_str = str(row.get('格局', ''))
+        # 組合類型與格局顯示文字，若兩者都有則以 | 分隔
+        layout_display = f"{type_str}" + (f" | {layout_str}" if layout_str else "") if type_str else layout_str
+        
+        img_tag = f"<img src='{img_url}' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
+        links_block = f"""
+            <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
+                <a href='{web_link}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
+                <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>📑 騰本連結</a>
+            </div>
+        """
+        
+        popup_html = f"""
+            {img_tag}
+            <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
+            <div style='font-size:15px; color:#333; line-height:1.6;'>
+                📍 推估地址：{display_text}<br>
+                👤 研判戶籍：{display_res_addr}<br>
+                🏠 房型：{layout_display}<br>
+                💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F<br>
+                🕒 更新：{str(row.get('更新時間',''))}
+            </div>
+            {links_block}
+        """
+
+        base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
+        
+        # --- 紅色物件標記 ---
+        folium.Marker(
+            location=house_loc,
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=f"{row['案件名稱']}",
+            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:42px;height:42px;font-size:18px;">{"🏠" if count==0 else count}</div>', icon_anchor=(21, 21))
+        ).add_to(marker_cluster)
+
+        # --- 綠色戶籍標記 ---
+        if not is_overlap and display_res_addr != "待查閱" and res_loc and res_loc[0] is not None:
+            # 戶籍彈窗 HTML: 回歸最穩定的 a 連結跳轉
+            res_popup_html = f"""
+                {img_tag}
+                <b style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>👤 屋主戶籍地</b>
+                <div style='font-size:15px; color:#333; line-height:1.6;'>
+                    📍 推估地址：{display_text}<br>
+                    👤 研判戶籍：{display_res_addr}
+                </div>
+                <a href='javascript:void(0);' onclick='jumpTo({house_loc[0]}, {house_loc[1]})' 
+                   style='display:inline-block; width:90%; text-align:center; margin-top:12px; padding:8px 0; background-color:#ff4b4b; color:white; border-radius:20px; font-size:15px; font-weight:bold; text-decoration:none;'>
+                    🏠 回物件位置
+                </a>
+            """
+            
+            folium.Marker(
+                location=res_loc,
+                popup=folium.Popup(res_popup_html, max_width=300),
+                tooltip="屋主戶籍",
+                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:18px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
+            ).add_to(marker_cluster)
+            
+    st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
+
+with tab2:
+    # 進行字串強制轉換，防堵 PyArrow 因為經緯度欄位夾雜空字串而導致的渲染崩潰
+    st.dataframe(df_raw.astype(str), width="stretch", height=600)
