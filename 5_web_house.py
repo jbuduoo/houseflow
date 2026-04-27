@@ -181,12 +181,23 @@ if True:
 
     # 以 session_state 內的中心點建立地圖
     m = folium.Map(location=[c_lat, c_lng], zoom_start=18, min_zoom=18, max_zoom=18, tiles="OpenStreetMap")
-    plugins.LocateControl(auto_start=False).add_to(m)
     
-    # 載入 FontAwesome 6 的圖庫 (因為 fa-cat 是新版圖庫才有)
+    # 修改定位按鈕圖示與顏色
+    plugins.LocateControl(
+        auto_start=False, 
+        icon='fa-sharp fa-regular fa-location-arrow',
+        iconLoading='fa-solid fa-spinner fa-spin'
+    ).add_to(m)
+    
+    # 載入 FontAwesome 6 且加上圖示的自訂顏色 CSS
     from folium import Element
-    m.get_root().html.add_child(Element('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">'))
-
+    m.get_root().html.add_child(Element('''
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <style>
+            .fa-location-arrow { color: rgb(116, 192, 252) !important; font-size: 18px !important; }
+        </style>
+    '''))
+    
     # --- 加入「目前位置」標記與搜尋半徑圈 ---
     center_icon_html = """
     <div style='display:flex;align-items:center;justify-content:center;background-color:#333;width:40px;height:40px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);font-size:22px;'>
