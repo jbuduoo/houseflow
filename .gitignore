@@ -9,6 +9,14 @@ browser_session/
 
 # 日誌檔與虛擬環境
 *.log
+# 備份與暫存
+baukup/
+browser_session/
+temp_chrome_session/
+__pycache__/
+*.png
+coords_cache.json
+houseflow_gheet_key.json.json
 .venv/
 venv/
 env/

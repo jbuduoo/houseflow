@@ -8,7 +8,11 @@ from datetime import datetime
 
 # 設定
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDS_FILE = "houseflow_gheet_key.json.json"
+# 取得金鑰檔案的絕對路徑 (支援從根目錄或 core 執行)
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+CREDS_FILE = os.path.join(_base_dir, "houseflow_gheet_key.json.json")
+if not os.path.exists(CREDS_FILE):
+    CREDS_FILE = os.path.join(_base_dir, "..", "houseflow_gheet_key.json.json")
 SHEET_KEY = "1bU4BKbjQgnoNqSK50G4vHgMGBFetHsBrbMyHv2Xc2k0"
 
 def run_map_scraper():
