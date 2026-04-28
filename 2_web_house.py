@@ -123,26 +123,34 @@ if os.path.exists(log_path):
 # --- 初始定位流程 ---
 if 'init_done' not in st.session_state:
     st.session_state['init_done'] = False
+if 'gps_triggered' not in st.session_state:
+    st.session_state['gps_triggered'] = False
 
 if not st.session_state['init_done']:
     _, col_mid, _ = st.columns([1, 2, 1])
     with col_mid:
         st.markdown("""
-        <div style='text-align:center; margin-top: 30vh;'>
-            <h2>住通地圖</h2>
+        <div style='text-align:center; margin-top: 30vh; margin-bottom: 1.5rem;'>
+            <h2>住通要求存取您的位置 </h2>
         </div>
         """, unsafe_allow_html=True)
 
-        from streamlit_geolocation import streamlit_geolocation
-        _, c_gps, _ = st.columns([1, 1, 1])
-        with c_gps:
-            loc = streamlit_geolocation()
-            if loc and loc.get('latitude'):
-                st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-                st.session_state['init_done'] = True
-                st.rerun()
+        _, c_btn, _ = st.columns([1, 1, 1])
+        with c_btn:
+            if not st.session_state['gps_triggered']:
+                if st.button("📍 同意", use_container_width=True):
+                    st.session_state['gps_triggered'] = True
+                    st.rerun()
+            else:
+                from streamlit_geolocation import streamlit_geolocation
+                loc = streamlit_geolocation()
+                if loc and loc.get('latitude'):
+                    st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+                    st.session_state['init_done'] = True
+                    st.rerun()
 
     st.stop()
+
 
 if True:
     c_lat, c_lng = st.session_state['map_center']
