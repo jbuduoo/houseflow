@@ -1,7 +1,7 @@
 streamlit
+pandas
 folium
 streamlit-folium
 gspread
 oauth2client
-pandas
 streamlit-geolocation
