@@ -129,7 +129,7 @@ if True:
 
 
     # 以 session_state 內的中心點建立地圖
-    m = folium.Map(location=[c_lat, c_lng], zoom_start=17, min_zoom=17, max_zoom=17, tiles="OpenStreetMap")
+    m = folium.Map(location=[c_lat, c_lng], zoom_start=18, min_zoom=18, max_zoom=18, tiles="OpenStreetMap")
     
     # 修改定位按鈕圖示與顏色
     plugins.LocateControl(
@@ -137,7 +137,7 @@ if True:
         icon='fa-solid fa-location-arrow',
         iconLoading='fa-solid fa-spinner fa-spin',
         flyTo=True,
-        zoom=17
+        zoom=18
     ).add_to(m)
     
     # 載入 FontAwesome 6 且加上圖示的自訂顏色 CSS
@@ -206,8 +206,8 @@ if True:
     import random
     from collections import defaultdict
     
-    # 改用普通的 FeatureGroup，不再使用自動叢集
-    marker_group = folium.FeatureGroup(name="物件點位").add_to(m)
+    # 使用 MarkerCluster 讓相近點自動合併
+    marker_group = MarkerCluster(name="物件點位").add_to(m)
 
     count_rendered = 0
     base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
@@ -230,8 +230,8 @@ if True:
     # 2. 處理每一個分群
     for (h_lat, h_lng), rows in grouped_houses.items():
         # 解法 A: 加上隨機位移 (Jitter)，擴大至正負 15 公尺 (0.00015度)，讓點錯開更明顯
-        jitter_lat = random.uniform(-0.00015, 0.00015)
-        jitter_lng = random.uniform(-0.00015, 0.00015)
+        jitter_lat = random.uniform(-0.0003, 0.0003)
+        jitter_lng = random.uniform(-0.0003, 0.0003)
         final_lat = h_lat + jitter_lat
         final_lng = h_lng + jitter_lng
         
@@ -338,8 +338,8 @@ if True:
         
         # 畫出綠色戶籍標記 (每個戶籍地也給予獨立微小位移)
         for res in res_locations:
-            res_lat = res["loc"][0] + random.uniform(-0.00015, 0.00015)
-            res_lng = res["loc"][1] + random.uniform(-0.00015, 0.00015)
+            res_lat = res["loc"][0] + random.uniform(-0.0003, 0.0003)
+            res_lng = res["loc"][1] + random.uniform(-0.0003, 0.0003)
             folium.Marker(
                 location=[res_lat, res_lng],
                 popup=folium.Popup(res["html"], max_width=300),
