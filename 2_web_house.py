@@ -120,11 +120,54 @@ if os.path.exists(log_path):
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
 
+# --- 初始定位流程 ---
+if 'init_done' not in st.session_state:
+    st.session_state['init_done'] = False
+if 'gps_denied' not in st.session_state:
+    st.session_state['gps_denied'] = False
+
+if not st.session_state['init_done']:
+    if st.session_state['gps_denied']:
+        st.markdown("""
+        <div style='text-align:center; margin-top: 25vh;'>
+            <div style='font-size:60px;'>🚫</div>
+            <h2 style='color:#d32f2f;'>無法使用此服務</h2>
+            <p style='font-size:16px; color:#555;'>此程式需要您的 GPS 定位才能運作。<br>
+            請在瀏覽器中重新允許定位後，重新整理頁面。</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.stop()
+
+    _, col_mid, _ = st.columns([1, 2, 1])
+    with col_mid:
+        st.markdown("""
+        <div style='text-align:center; margin-top: 15vh; margin-bottom: 2rem;'>
+            <div style='font-size:60px;'>📍</div>
+            <h2>房仲攻堅地圖</h2>
+            <p style='font-size:16px; color:#555;'>
+                使用前需要取得您的 GPS 位置。<br>
+                請點擊下方按鈕並在瀏覽器中選擇「允許」。
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        from streamlit_geolocation import streamlit_geolocation
+        loc = streamlit_geolocation()
+
+        if loc and loc.get('latitude'):
+            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+            st.session_state['init_done'] = True
+            st.rerun()
+
+        st.markdown("<div style='margin-top:1rem;'>", unsafe_allow_html=True)
+        if st.button("❌ 不同意，離開", use_container_width=True):
+            st.session_state['gps_denied'] = True
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.stop()
+
 if True:
-    if 'map_center' not in st.session_state:
-        st.session_state['map_center'] = [25.00393, 121.51231]
-
-
     c_lat, c_lng = st.session_state['map_center']
 
 
