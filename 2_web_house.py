@@ -338,9 +338,19 @@ if True:
             tooltip=tooltip_text,
             icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>', icon_anchor=(19, 19))
         ).add_to(marker_group)
-        
 
-            
+        # 畫出綠色戶籍標記
+        for res in res_locations:
+            res_lat = res["loc"][0] + random.uniform(-0.001, 0.001)
+            res_lng = res["loc"][1] + random.uniform(-0.001, 0.001)
+            folium.Marker(
+                location=[res_lat, res_lng],
+                popup=folium.Popup(res["html"], max_width=300),
+                tooltip=res["addr"],
+                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
+            ).add_to(marker_group)
+
+
     st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
 
     end_time = time.time()
