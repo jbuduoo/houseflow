@@ -206,8 +206,8 @@ if True:
     import random
     from collections import defaultdict
     
-    # 使用 MarkerCluster 讓相近點自動合併
-    marker_group = MarkerCluster(name="物件點位").add_to(m)
+    # 使用紅色圓圈 FeatureGroup，以鄰近座標分群
+    marker_group = folium.FeatureGroup(name="物件點位").add_to(m)
 
     count_rendered = 0
     base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
@@ -225,13 +225,13 @@ if True:
         if dist_km > 0.5:
             continue
             
-        grouped_houses[(h_lat, h_lng)].append(row)
+        grouped_houses[(round(h_lat, 4), round(h_lng, 4))].append(row)
 
     # 2. 處理每一個分群
     for (h_lat, h_lng), rows in grouped_houses.items():
         # 解法 A: 加上隨機位移 (Jitter)，擴大至正負 15 公尺 (0.00015度)，讓點錯開更明顯
-        jitter_lat = random.uniform(-0.0003, 0.0003)
-        jitter_lng = random.uniform(-0.0003, 0.0003)
+        jitter_lat = random.uniform(-0.0005, 0.0005)
+        jitter_lng = random.uniform(-0.0005, 0.0005)
         final_lat = h_lat + jitter_lat
         final_lng = h_lng + jitter_lng
         
@@ -336,16 +336,7 @@ if True:
             icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>', icon_anchor=(19, 19))
         ).add_to(marker_group)
         
-        # 畫出綠色戶籍標記 (每個戶籍地也給予獨立微小位移)
-        for res in res_locations:
-            res_lat = res["loc"][0] + random.uniform(-0.0003, 0.0003)
-            res_lng = res["loc"][1] + random.uniform(-0.0003, 0.0003)
-            folium.Marker(
-                location=[res_lat, res_lng],
-                popup=folium.Popup(res["html"], max_width=300),
-                tooltip=res["addr"],
-                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
-            ).add_to(marker_group)
+
             
     st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
 
