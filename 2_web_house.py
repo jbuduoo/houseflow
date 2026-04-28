@@ -129,7 +129,7 @@ if True:
 
 
     # 以 session_state 內的中心點建立地圖
-    m = folium.Map(location=[c_lat, c_lng], zoom_start=14, min_zoom=14, max_zoom=18, tiles="OpenStreetMap")
+    m = folium.Map(location=[c_lat, c_lng], zoom_start=16, min_zoom=16, max_zoom=16, tiles="OpenStreetMap")
     
     # 修改定位按鈕圖示與顏色
     plugins.LocateControl(
