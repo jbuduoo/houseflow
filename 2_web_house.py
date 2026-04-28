@@ -212,14 +212,14 @@ if True:
     import random
     from collections import defaultdict
     
-    # 使用 MarkerCluster，點擊後 Spiderfy 展開；紅色樣式已由 CSS 覆蓋
-    marker_group = MarkerCluster(name="物件點位").add_to(m)
+    # 使用 FeatureGroup，不合併內容
+    marker_group = folium.FeatureGroup(name="物件點位").add_to(m)
 
     count_rendered = 0
     base_style = "display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.5);color:white;font-weight:bold;"
 
-    # 1. 預先過濾
-    candidate_rows = []
+    # 以精確座標分群（相同座標才合併）
+    grouped_houses = defaultdict(list)
     for index, row in df.iterrows():
         try:
             h_lat = float(row.get('物件緯度', ''))
@@ -229,31 +229,14 @@ if True:
         dist_km = (((h_lat - c_lat) * 111) ** 2 + ((h_lng - c_lng) * 100) ** 2) ** 0.5
         if dist_km > 0.5:
             continue
-        candidate_rows.append((h_lat, h_lng, row))
+        grouped_houses[(h_lat, h_lng)].append(row)
 
-    # 2. 貪心鄰近分群（確保螢幕上不重疊）
-    CLUSTER_R = 0.0003  # 約 33 公尺
-    used = [False] * len(candidate_rows)
-    grouped_houses = []
-    for i, (lat_i, lng_i, row_i) in enumerate(candidate_rows):
-        if used[i]:
-            continue
-        c_lats, c_lngs, c_rows = [lat_i], [lng_i], [row_i]
-        used[i] = True
-        for j, (lat_j, lng_j, row_j) in enumerate(candidate_rows):
-            if used[j]:
-                continue
-            if abs(lat_i - lat_j) < CLUSTER_R and abs(lng_i - lng_j) < CLUSTER_R:
-                c_lats.append(lat_j)
-                c_lngs.append(lng_j)
-                c_rows.append(row_j)
-                used[j] = True
-        grouped_houses.append((sum(c_lats)/len(c_lats), sum(c_lngs)/len(c_lngs), c_rows))
-
-    # 2. 處理每一個分群
-    for (h_lat, h_lng, rows) in grouped_houses:
-        final_lat = h_lat
-        final_lng = h_lng
+    # 處理每一筆或分群
+    for (h_lat, h_lng), rows in grouped_houses.items():
+        jitter_lat = random.uniform(-0.001, 0.001)
+        jitter_lng = random.uniform(-0.001, 0.001)
+        final_lat = h_lat + jitter_lat
+        final_lng = h_lng + jitter_lng
         
         group_size = len(rows)
         count_rendered += group_size
