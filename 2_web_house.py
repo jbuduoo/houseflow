@@ -120,11 +120,28 @@ if os.path.exists(log_path):
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
 
-# --- 初始定位流程 ---
+# --- 初始定位流程（JavaScript 自動觸發瀏覽器原生 GPS 彈窗）---
+import streamlit.components.v1 as components
+
 if 'init_done' not in st.session_state:
     st.session_state['init_done'] = False
 if 'gps_denied' not in st.session_state:
     st.session_state['gps_denied'] = False
+
+# 從 URL 參數接收 GPS 結果（由 JavaScript 傳入）
+_params = st.query_params
+if 'lat' in _params and 'lng' in _params:
+    try:
+        st.session_state['map_center'] = [float(_params['lat']), float(_params['lng'])]
+        st.session_state['init_done'] = True
+        st.query_params.clear()
+        st.rerun()
+    except:
+        pass
+elif 'gps_denied' in _params:
+    st.session_state['gps_denied'] = True
+    st.query_params.clear()
+    st.rerun()
 
 if not st.session_state['init_done']:
     if st.session_state['gps_denied']:
@@ -138,34 +155,34 @@ if not st.session_state['init_done']:
         """, unsafe_allow_html=True)
         st.stop()
 
-    _, col_mid, _ = st.columns([1, 2, 1])
-    with col_mid:
-        st.markdown("""
-        <div style='text-align:center; margin-top: 15vh; margin-bottom: 2rem;'>
-            <div style='font-size:60px;'>📍</div>
-            <h2>房仲攻堅地圖</h2>
-            <p style='font-size:16px; color:#555;'>
-                使用前需要取得您的 GPS 位置。<br>
-                請點擊下方按鈕並在瀏覽器中選擇「允許」。
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    # 等待畫面
+    st.markdown("""
+    <div style='text-align:center; margin-top: 20vh;'>
+        <div style='font-size:60px;'>📍</div>
+        <h2>房仲攻堅地圖</h2>
+        <p style='font-size:16px; color:#555;'>請在瀏覽器彈窗中點擊「允許」以取得您的位置。</p>
+        <p style='font-size:13px; color:#aaa;'>⌛ 等待授權中...</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-        from streamlit_geolocation import streamlit_geolocation
-        _, c_gps, _ = st.columns([1, 1, 1])
-        with c_gps:
-            loc = streamlit_geolocation()
-
-            if loc and loc.get('latitude'):
-                st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-                st.session_state['init_done'] = True
-                st.rerun()
-
-            st.markdown("<div style='margin-top:0.5rem;'>", unsafe_allow_html=True)
-            if st.button("❌ 不同意，離開", use_container_width=True):
-                st.session_state['gps_denied'] = True
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+    # 自動觸發瀏覽器原生 GPS 授權彈窗
+    components.html("""
+    <script>
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            var base = window.parent.location.href.split('?')[0];
+            window.parent.location.href = base + '?lat=' + lat + '&lng=' + lng;
+        },
+        function(err) {
+            var base = window.parent.location.href.split('?')[0];
+            window.parent.location.href = base + '?gps_denied=1';
+        },
+        {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+    );
+    </script>
+    """, height=0)
 
     st.stop()
 
