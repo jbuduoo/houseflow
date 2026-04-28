@@ -335,7 +335,6 @@ if True:
         folium.Marker(
             location=[final_lat, final_lng],
             popup=folium.Popup(combined_popup_html, max_width=320),
-            tooltip=tooltip_text,
             icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>', icon_anchor=(19, 19))
         ).add_to(marker_group)
 
@@ -346,7 +345,6 @@ if True:
             folium.Marker(
                 location=[res_lat, res_lng],
                 popup=folium.Popup(res["html"], max_width=300),
-                tooltip=res["addr"],
                 icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
             ).add_to(marker_group)
 
