@@ -152,18 +152,20 @@ if not st.session_state['init_done']:
         """, unsafe_allow_html=True)
 
         from streamlit_geolocation import streamlit_geolocation
-        loc = streamlit_geolocation()
+        _, c_gps, _ = st.columns([1, 1, 1])
+        with c_gps:
+            loc = streamlit_geolocation()
 
-        if loc and loc.get('latitude'):
-            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-            st.session_state['init_done'] = True
-            st.rerun()
+            if loc and loc.get('latitude'):
+                st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+                st.session_state['init_done'] = True
+                st.rerun()
 
-        st.markdown("<div style='margin-top:1rem;'>", unsafe_allow_html=True)
-        if st.button("❌ 不同意，離開", use_container_width=True):
-            st.session_state['gps_denied'] = True
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:0.5rem;'>", unsafe_allow_html=True)
+            if st.button("❌ 不同意，離開", use_container_width=True):
+                st.session_state['gps_denied'] = True
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
     st.stop()
 
