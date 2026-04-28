@@ -129,7 +129,7 @@ if True:
 
 
     # 以 session_state 內的中心點建立地圖
-    m = folium.Map(location=[c_lat, c_lng], zoom_start=16, min_zoom=16, max_zoom=16, tiles="OpenStreetMap")
+    m = folium.Map(location=[c_lat, c_lng], zoom_start=17, min_zoom=17, max_zoom=17, tiles="OpenStreetMap")
     
     # 修改定位按鈕圖示與顏色
     plugins.LocateControl(
@@ -137,7 +137,7 @@ if True:
         icon='fa-solid fa-location-arrow',
         iconLoading='fa-solid fa-spinner fa-spin',
         flyTo=True,
-        zoom=16
+        zoom=17
     ).add_to(m)
     
     # 載入 FontAwesome 6 且加上圖示的自訂顏色 CSS
