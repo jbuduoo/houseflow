@@ -86,7 +86,7 @@ def build_conclusion(m_val, y_val, z_val):
         lines = []
         for i, addr in enumerate(addrs):
             if i == matched_idx:
-                lines.append(f"{addr}(星號)")
+                lines.append(f"{addr} ⭐")
             else:
                 lines.append(addr)
         return "\n".join(lines)
