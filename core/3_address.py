@@ -241,21 +241,21 @@ def process_single_task(idx, task, total_tasks, wks):
                     status_symbol = "🔍 查無結果 → 填「查無」"
 
                 elif result.get('yellowCount', 0) == 1:
-                    addr  = "✨ " + result.get('address', '解析失敗')
+                    addr  = result.get('address', '解析失敗')
                     t_url = result.get('transcriptUrl', '')
-                    status_symbol = f"{addr}  🔗 查戶籍已填" if t_url else f"{addr}  ⚠️ 無法取得查戶籍連結"
+                    status_symbol = f"✨ {addr}  🔗 查戶籍已填" if t_url else f"✨ {addr}  ⚠️ 無法取得查戶籍連結"
 
                 elif result.get('yellowCount', 0) > 1:
-                    addr = "⚠️ " + result.get('address', '解析失敗')
-                    status_symbol = f"{addr}"
+                    addr = result.get('address', '解析失敗')
+                    status_symbol = f"⚠️ {addr}"
 
                 elif result.get('count', 0) == 1:
-                    addr = "❓ " + result.get('address', '解析失敗') + "(疑似)"
-                    status_symbol = f"{addr}"
+                    addr = result.get('address', '解析失敗') + "(疑似)"
+                    status_symbol = f"❓ {addr}"
 
                 else:
-                    addr = "⚠️ " + result.get('address', '解析失敗')
-                    status_symbol = f"{addr}"
+                    addr = result.get('address', '解析失敗')
+                    status_symbol = f"⚠️ {addr}"
 
                 # ── 排隊寫入試算表 ────────────────────────
                 # 全形數字轉半形，確保地址格式統一

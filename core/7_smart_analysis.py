@@ -14,86 +14,86 @@ def normalize_fullwidth(text):
     """將全形數字 ０-９ 轉換為半形 0-9，以利後續 Regex 比對"""
     return text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
 
-def extract_street_numbers(address_text):
-    """
-    從字串中提取所有路/街及數字門牌號碼 (同時支援全形/半形)
-    例如: "中山路１７號,１９號" -> ["17", "19"]
-    """
-    if not address_text: return []
-    normalized = normalize_fullwidth(address_text)
-    matches = re.findall(r'(\d+)號', normalized)
-    return matches
+def strip_floor(address):
+    """移除號碼之後的樓層資訊，保留到號為止（用於比對）"""
+    normalized = normalize_fullwidth(address)
+    result = re.sub(r'號.*', '號', normalized)
+    return result.strip()
 
-def smart_analyze(m_val, y_val, z_val):
+def get_last_door_num(address):
+    """取出地址中最後一個號碼前的數字（門牌號），供比對用"""
+    normalized = normalize_fullwidth(address)
+    matches = re.findall(r'(\d+)號', normalized)
+    return matches[-1] if matches else None
+
+def is_gps_match(m_addr, y_addr):
     """
-    根據 M(查地址), Y(反查地址), Z(座標來源) 進行 10 種情境研判
+    判斷 M 欄某一筆地址是否與 Y 欄反查地址吻合
+    比對邏輯：提取最後的門牌號，若相同視為命中
     """
-    m_val = str(m_val).strip()
-    y_val = str(y_val).strip()
+    if not m_addr or not y_addr:
+        return False
+    m_num = get_last_door_num(m_addr)
+    y_num = get_last_door_num(y_addr)
+    return m_num and y_num and m_num == y_num
+
+def build_conclusion(m_val, y_val, z_val):
+    """
+    依照業務邏輯建立 AA 欄的輸出文字：
+    - GPS 命中：地址(星號)
+    - 多筆含命中：命中地址(星號) + 其他地址
+    - GPS 不吻合：住通：M地址 + 定位：Y地址
+    - 查無 + 有 GPS：定位：Y地址
+    - 查無 + 無 GPS：查無
+    """
+    m_val = normalize_fullwidth(str(m_val).strip())
+    y_val = normalize_fullwidth(str(y_val).strip())
     z_val = str(z_val).strip()
 
-    # 1. 判斷 M 欄狀態
-    is_perfect = "✨" in m_val
-    is_suspect = "❓" in m_val
-    is_multiple = "⚠️" in m_val
-    is_not_found = "查無" in m_val or m_val == ""
-
-    # 清理 M 欄文字作為顯示基底
-    clean_m = re.sub(r'[✨❓⚠️]', '', m_val).strip()
-
-    # 2. 判斷 Y 欄 (定位反查)
-    has_rev = y_val != ""
-    # 若來源是 ArcGIS，我們不視為有效驗證 (因為是自己推算的)
+    # 若座標來源是 ArcGIS（系統自算），Y 欄不視為有效 GPS 驗證
     if z_val == "ArcGIS":
-        has_rev = False
         y_val = ""
 
-    clean_y = y_val.replace("(座標反查)", "").strip()
+    is_not_found = (m_val == "查無" or m_val == "")
+    has_gps = y_val != ""
 
-    # 3. 判斷是否吻合 (交集比對)
-    is_match = False
-    if has_rev and not is_not_found:
-        m_nums = extract_street_numbers(clean_m)
-        y_nums = extract_street_numbers(clean_y)
-        
-        # 只要反查出來的號碼，存在於 M 欄的號碼清單中，就算吻合
-        if y_nums and any(num in m_nums for num in y_nums):
-            is_match = True
-        elif not m_nums and not y_nums and clean_m and clean_y:
-            # 兩邊都沒號碼，那就比對純文字路名
-            if clean_y in clean_m or clean_m in clean_y:
-                is_match = True
+    # ── 情況一：查無 ──────────────────────────────────
+    if is_not_found:
+        if has_gps:
+            return f"定位：{y_val}"
+        else:
+            return "查無"
 
-    # 4. 依照 10 種情境輸出
-    if is_perfect:
-        if has_rev and is_match:
-            return f"🎯 雙重確認：【{clean_m}】 (備註：產權與網頁座標完美重合，請安心開發)"
-        elif has_rev and not is_match:
-            return f"🎯 真實門牌：【{clean_m}】 (⚠️ 注意：網頁座標刻意偏移至 {clean_y}，請忽略座標)"
-        else:
-            return f"🎯 系統推算：【{clean_m}】 (備註：無地圖定位可驗證，請依此門牌尋訪)"
-            
-    elif is_suspect:
-        if has_rev and is_match:
-            return f"🎯 雙重確認：推薦為【{clean_m}】 (備註：產權比對為疑似，但座標命中補足了信賴度)"
-        elif has_rev and not is_match:
-            return f"❓ 疑似門牌：【{clean_m}】 (⚠️ 注意：產權未100%吻合，且座標定於 {clean_y}，兩者皆需存疑)"
-        else:
-            return f"❓ 疑似門牌：【{clean_m}】 (備註：產權未100%吻合，且無地圖定位可驗證)"
-            
-    elif is_multiple:
-        if has_rev and is_match:
-            return f"🎯 座標助攻：推薦為【{clean_y}】 (備註：產權符合多筆，但座標精確命中 {clean_y})"
-        elif has_rev and not is_match:
-            return f"🔍 真實門牌應為：【{clean_m}】之一 (⚠️ 注意：座標定位於 {clean_y}，未命中產權清單，僅供參考)"
-        else:
-            return f"🔍 需實地確認：【{clean_m}】 (備註：產權符合多筆，無座標可輔助篩選)"
-            
-    else: # 查無
-        if has_rev:
-            return f"📍 地圖定位：疑似在【{clean_y}】附近 (備註：產權條件有誤導致查無資料，請至實地尋訪)"
-        else:
-            return f"❌ 查無有效開發資訊 (備註：產權與座標皆無法取得)"
+    # ── 情況二：有產權資料 ────────────────────────────
+    # 分割多筆地址（以逗號分隔）
+    addrs = [a.strip() for a in m_val.split(',') if a.strip()]
+    if not addrs:
+        return m_val
+
+    if not has_gps:
+        # 無 GPS，直接列出所有產權地址
+        return "\n".join(addrs)
+
+    # 找出哪一筆 M 地址與 GPS 命中
+    matched_idx = None
+    for i, addr in enumerate(addrs):
+        if is_gps_match(addr, y_val):
+            matched_idx = i
+            break
+
+    if matched_idx is not None:
+        # GPS 命中！命中的那筆加(星號)，其他保留
+        lines = []
+        for i, addr in enumerate(addrs):
+            if i == matched_idx:
+                lines.append(f"{addr}(星號)")
+            else:
+                lines.append(addr)
+        return "\n".join(lines)
+    else:
+        # GPS 不吻合：顯示住通地址 + 定位地址
+        m_lines = "\n".join([f"住通：{addr}" for addr in addrs])
+        return f"{m_lines}\n定位：{y_val}"
 
 
 def run_smart_analysis():
@@ -150,7 +150,7 @@ def run_smart_analysis():
             aa_val = get_val(IDX_AA_ANALYSIS)
             
             # 若 M, Y 都有或查無，可以研判。如果有舊的，直接覆寫也無妨
-            conclusion = smart_analyze(m_val, y_val, z_val)
+            conclusion = build_conclusion(m_val, y_val, z_val)
             
             # 只有當算出來的結果跟原本不同才寫入，節省網路
             if conclusion != aa_val:
