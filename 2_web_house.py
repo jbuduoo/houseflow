@@ -297,7 +297,7 @@ if True:
                 qty_is_multi = False
                 
             suffix = " (需比對：多筆)" if qty_is_multi else ""
-            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對：多筆)').replace('(多筆)', '(需比對：多筆)')
+            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)')
             
             type_str = str(row.get('類型', ''))
             layout_str = str(row.get('格局', ''))

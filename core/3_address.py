@@ -241,7 +241,7 @@ def process_single_task(idx, task, total_tasks, wks):
                     status_symbol = f"✨ {addr}  🔗 查戶籍已填" if t_url else f"✨ {addr}  ⚠️ 無法取得查戶籍連結"
 
                 elif result.get('yellowCount', 0) > 1:
-                    addr = result.get('address', '解析失敗') + f"(需比對：{result['yellowCount']}筆)"
+                    addr = result.get('address', '解析失敗') + f"(需比對{result['yellowCount']}筆)"
                     status_symbol = f"⚠️ {addr}  [黃色列有 {result['yellowCount']} 筆]"
 
                 elif result.get('count', 0) == 1:
@@ -249,7 +249,7 @@ def process_single_task(idx, task, total_tasks, wks):
                     status_symbol = f"❓ {addr}"
 
                 else:
-                    addr = result.get('address', '解析失敗') + f"(需比對：{result['count']}筆)"
+                    addr = result.get('address', '解析失敗') + f"(需比對{result['count']}筆)"
                     status_symbol = f"⚠️ {addr}"
 
                 # ── 排隊寫入試算表 ────────────────────────
@@ -337,7 +337,7 @@ def run_enricher():
             f.cancel()             # 取消還在排隊的任務
         executor.shutdown(wait=False) # 立刻關閉執行池，不等待
         import sys
-        sys.exit(0)
+        raise KeyboardInterrupt
     finally:
         executor.shutdown(wait=True)
 

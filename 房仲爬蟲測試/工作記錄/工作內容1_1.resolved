@@ -1,0 +1,19 @@
+# 工作內容 1.1 執行成果
+
+已重新爬取信義房屋網站資料，並利用反查腳本 (OpenStreetMap Nominatim) 取得地址。
+
+## 📊 執行結果
+
+| 網址 | 座標 | 地址 |
+| :--- | :--- | :--- |
+| https://www.sinyi.com.tw/buy/house/0951DT?breadcrumb=list | `25.004739602321,121.5168669117` | 5號, 秀朗路一段139巷, 店街里, 永和區, 秀朗, 新北市, 23455, 臺灣 |
+| https://www.sinyi.com.tw/buy/house/6294NF?breadcrumb=list | `25.00258107108,121.52226700325` | 148號, 永利路, 秀和里, 永和區, 秀朗, 新北市, 234044, 臺灣 |
+| https://www.sinyi.com.tw/buy/house/1459QF?breadcrumb=list | `25.00258107108,121.52226700325` | 148號, 永利路, 秀和里, 永和區, 秀朗, 新北市, 234044, 臺灣 |
+| https://www.sinyi.com.tw/buy/house/8089GW?breadcrumb=list | `25.012031406314,121.52029572913` | 7號, 竹林路109巷, 桂林里, 永和區, 溪洲, 新北市, 23448, 臺灣 |
+| https://www.sinyi.com.tw/buy/house/1629JZ?breadcrumb=list | `25.010319862673,121.51139163323` | 1號, 中山路一段99巷, 前溪里, 永和區, 溪洲, 新北市, 23446, 臺灣 |
+
+
+
+## 🛠️ 執行腳本
+- 腳本位置：[task_1_1_run.py](file:///c:/Users/wits/Documents/%E7%A8%8B%E5%BC%8F%E5%B0%88%E5%8D%80/01_%E4%BD%8F%E9%80%9A%E5%9C%B0%E5%9C%96%E9%96%8B%E6%94%BE%E7%B3%BB%E7%B5%B1/%E6%88%BF%E4%BB%B2%E7%88%AC%E8%9F%B2%E6%B8%AC%E8%A9%A6/task_1_1_run.py)
+- 結果存檔：[task_1_1_results.md](file:///c:/Users/wits/Documents/%E7%A8%8B%E5%BC%8F%E5%B0%88%E5%8D%80/01_%E4%BD%8F%E9%80%9A%E5%9C%B0%E5%9C%96%E9%96%8B%E6%94%BE%E7%B3%BB%E7%B5%B1/%E6%88%BF%E4%BB%B2%E7%88%AC%E8%9F%B2%E6%B8%AC%E8%A9%A6/task_1_1_results.md)

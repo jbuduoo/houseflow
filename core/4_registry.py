@@ -144,36 +144,6 @@ def clean_address_logic(addr):
     return cleaned
 
 
-def clean_for_geo(raw_addr):
-    """定位專用清理：剝離樓層與雜訊，提升 ArcGIS 命中率"""
-    addr = str(raw_addr).strip()
-    if not addr or addr in ["", "查無", "解析失敗", "待查閱"] or "http" in addr:
-        return ""
-    if "號" not in addr: return ""
-    
-    addr = addr.split('(')[0] # 切掉括號
-    addr = re.sub(r'(?<=[區鄉鎮市])[^區鄉鎮市里]+里', '', addr) # 去里
-    addr = re.sub(r'[0-9０-９]{1,3}鄰', '', addr) # 去鄰
-    addr = re.sub(r'號.*', '號', addr) # 保留到「號」為止
-    return addr.replace(' ', '').strip()
-
-
-def get_arcgis_coords(address):
-    """向 ArcGIS 查詢經緯度"""
-    if not address: return "", ""
-    url = f"https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine={urllib.parse.quote(address)}&outFields=Match_addr"
-    req = urllib.request.Request(url, headers={'User-Agent': 'HouseFlowApp/5.0'})
-    try:
-        time.sleep(0.15) # 防擋延遲
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
-            if "candidates" in data and len(data["candidates"]) > 0:
-                loc = data["candidates"][0]["location"]
-                return str(loc["y"]), str(loc["x"]) # y=lat, x=lon
-    except: pass
-    return "", ""
-
-
 # ── JS：用 TreeWalker 依序掃描，最精準找建築物所有權部的住址 ─
 EXTRACT_JS = r"""() => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ALL);
@@ -265,10 +235,7 @@ def run_fetcher():
     try:
         idx_m_addr = headers.index(HEAD_OBJ_ADDR)
         idx_o_addr = headers.index(HEAD_RES_ADDR)
-        idx_obj_lat = headers.index(HEAD_OBJ_LAT)
-        idx_obj_lon = headers.index(HEAD_OBJ_LON)
-        idx_res_lat = headers.index(HEAD_RES_LAT)
-        idx_res_lon = headers.index(HEAD_RES_LON)
+
         idx_n_url   = IDX_N # 直接使用預設的第 13 欄 (N)
     except ValueError as e:
         print(f"❌ 找不到必要的欄位: {e}")
@@ -284,26 +251,15 @@ def run_fetcher():
         n_url = (row[idx_n_url] if len(row) > idx_n_url else "").strip()
         o_addr = (row[idx_o_addr] if len(row) > idx_o_addr else "").strip()
         m_addr = (row[idx_m_addr] if len(row) > idx_m_addr else "").strip()
-        has_obj_lat = (row[idx_obj_lat] if len(row) > idx_obj_lat else "").strip()
-        has_res_lat = (row[idx_res_lat] if len(row) > idx_res_lat else "").strip()
-
         # A. 是否需要抓取戶籍地址 (N 有值，O 是空或失敗)
         need_fetch = n_url and "houseflow" in n_url and (not o_addr or "失敗" in o_addr)
         
-        # B. 是否需要補物件座標 (M 有地址，但無座標)
-        need_obj_geo = m_addr and not has_obj_lat
-        
-        # C. 是否需要補戶籍座標 (O 有地址、非 OCR 標註、但無座標)
-        need_res_geo = o_addr and not has_res_lat and "(OCR)" not in o_addr and "失敗" not in o_addr and "待查閱" not in o_addr
-
-        if need_fetch or need_obj_geo or need_res_geo:
+        if need_fetch:
             target_rows.append({
                 "row_num": row_num,
-                "url": n_url if need_fetch else None,
+                "url": n_url,
                 "id": row[0],
-                "row_data": row,
-                "need_obj_geo": need_obj_geo,
-                "need_res_geo": need_res_geo
+                "row_data": row
             })
 
     if not target_rows:
@@ -328,40 +284,7 @@ def run_fetcher():
             url     = task["url"]
 
             print(f"({idx+1}/{len(target_rows)}) ID:{case_id}", end=" → ")
-            
-            # 如果這筆任務不需要開啟網頁 (純補座標)，就跳過瀏覽器操作
-            if not url:
-                row_updates = []
-                # 執行補座標邏輯 (物件與戶籍)
-                # A. 物件座標
-                row_data = task["row_data"]
-                obj_addr = row_data[idx_m_addr] if len(row_data) > idx_m_addr else ""
-                if task["need_obj_geo"] and obj_addr:
-                    geo_addr = clean_for_geo(obj_addr)
-                    lat, lon = get_arcgis_coords(geo_addr)
-                    if lat:
-                        row_updates.extend([
-                            gspread.Cell(row=row_num, col=idx_obj_lat + 1, value=lat),
-                            gspread.Cell(row=row_num, col=idx_obj_lon + 1, value=lon)
-                        ])
-                        print("[補物標]", end="")
 
-                # B. 戶籍座標 (必為非 OCR 標註才會進到這裡)
-                res_addr = row_data[idx_o_addr] if len(row_data) > idx_o_addr else ""
-                if task["need_res_geo"] and res_addr:
-                    geo_addr = clean_for_geo(res_addr)
-                    lat, lon = get_arcgis_coords(geo_addr)
-                    if lat:
-                        row_updates.extend([
-                            gspread.Cell(row=row_num, col=idx_res_lat + 1, value=lat),
-                            gspread.Cell(row=row_num, col=idx_res_lon + 1, value=lon)
-                        ])
-                        print("[補戶標]", end="")
-                
-                if row_updates:
-                    wks.update_cells(row_updates)
-                print("") # 換行
-                continue
 
             # --- 以下為需要開啟網頁抓取的情況 ---
             page = context.new_page()
@@ -404,38 +327,6 @@ def run_fetcher():
                     else:
                         row_updates.append(gspread.Cell(row=row_num, col=idx_o_addr + 1, value="OCR失敗"))
                         print("[OCR失敗]", end="")
-
-                # --- 延伸補完：座標查詢 ---
-                # A. 物件座標 (若 M 有地址且 R/S 是空的)
-                row_data = task["row_data"]
-                obj_addr = row_data[idx_m_addr] if len(row_data) > idx_m_addr else ""
-                has_obj_lat = (row_data[idx_obj_lat] if len(row_data) > idx_obj_lat else "").strip()
-                if obj_addr and not has_obj_lat:
-                    geo_addr = clean_for_geo(obj_addr)
-                    lat, lon = get_arcgis_coords(geo_addr)
-                    if lat:
-                        row_updates.extend([
-                            gspread.Cell(row=row_num, col=idx_obj_lat + 1, value=lat),
-                            gspread.Cell(row=row_num, col=idx_obj_lon + 1, value=lon)
-                        ])
-                        print(" +物標", end="")
-
-                # B. 戶籍座標 (1. 剛剛抓到的正常地址 或是 2. 原本就有地址但沒座標)
-                res_addr_to_geo = ""
-                if final_cleaned_addr: # 剛剛抓到的
-                    res_addr_to_geo = final_cleaned_addr
-                elif task["need_res_geo"]: # 原本就有，且已通過過濾 (無 OCR 標籤)
-                    res_addr_to_geo = task["row_data"][idx_o_addr]
-
-                if res_addr_to_geo:
-                    geo_addr = clean_for_geo(res_addr_to_geo)
-                    lat, lon = get_arcgis_coords(geo_addr)
-                    if lat:
-                        row_updates.extend([
-                            gspread.Cell(row=row_num, col=idx_res_lat + 1, value=lat),
-                            gspread.Cell(row=row_num, col=idx_res_lon + 1, value=lon)
-                        ])
-                        print(" +戶標", end="")
 
                 # 一次寫回該列所有更新
                 if row_updates:
