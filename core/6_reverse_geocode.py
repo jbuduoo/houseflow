@@ -51,6 +51,12 @@ def run_reverse_geocoder():
     try: IDX_V_SOURCE = headers.index("來源仲介")
     except: IDX_V_SOURCE = 21
 
+    try: IDX_Y_REV_ADDR = headers.index("反查地址")
+    except ValueError: IDX_Y_REV_ADDR = 24
+
+    try: IDX_Z_COORD_SRC = headers.index("座標來源")
+    except ValueError: IDX_Z_COORD_SRC = 25
+
     update_cells = []
     updated_count = 0
 
@@ -72,21 +78,23 @@ def run_reverse_geocoder():
             lat_str = get_val(IDX_OBJ_LAT)
             lon_str = get_val(IDX_OBJ_LON)
         
-            # 條件：來源是信義、查地址為空、且有經緯度
-            if source == "信義" and not obj_addr and lat_str and lon_str:
+            coord_src = get_val(IDX_Z_COORD_SRC)
+            rev_addr = get_val(IDX_Y_REV_ADDR)
+        
+            # 條件：有經緯度、座標來源不是 ArcGIS、且反查地址為空
+            if lat_str and lon_str and coord_src != "ArcGIS" and not rev_addr:
                 try:
                     lat = float(lat_str)
                     lng = float(lon_str)
                     address, was_cached = reverse_geocode(lat, lng)
                 
                     if "Error" not in address and "not found" not in address:
-                        # 格式化輸出
-                        final_address = f"{address}(座標反查)"
-                        update_cells.append(gspread.Cell(row=row_num, col=IDX_M_ADDR + 1, value=final_address))
+                        # 寫入 Y 欄 (不再加後綴)
+                        update_cells.append(gspread.Cell(row=row_num, col=IDX_Y_REV_ADDR + 1, value=address))
                         updated_count += 1
                     
                         source_str = "[快取]" if was_cached else "[API]"
-                        print(f"  √ [ID:{row[0]}] {source_str} 反查成功: {lat},{lng} ➔ {final_address}")
+                        print(f"  √ [ID:{row[0]}] {source_str} 反查成功: {lat},{lng} ➔ {address}")
                     
                         if not was_cached:
                             time.sleep(1.2) # API Rate limit (1 request per second)

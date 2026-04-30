@@ -22,7 +22,8 @@ def main():
     print("  [4] 🏠 戶籍/座標擷取 (4_registry.py)")
     print("  [5] 🗺️ 補齊座標 1.取得信義座標 2.取得的地址及戶籍地址沒有座標的物件 (5_coords.py)")
     print("  [6] 📍 地址補完 (座標反查) (6_reverse_geocode.py)")
-    print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5 -> 6)")
+    print("  [7] 🤖 AI 綜合研判 (7_smart_analysis.py)")
+    print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7)")
 
     try:
         user_input = input("\n請輸入功能編號: ").strip()
@@ -32,7 +33,7 @@ def main():
 
         # 處理輸入選項
         if "0" in user_input.split():
-            selected_tasks = ["1", "2", "3", "4", "5", "6"]
+            selected_tasks = ["1", "2", "3", "4", "5", "6", "7"]
         else:
             selected_tasks = user_input.split()
 
@@ -74,6 +75,11 @@ def main():
                 print("\n>>> [執行功能 6] 啟動座標反查地址 (6_reverse_geocode.py)...")
                 rev_geo_module = import_script("core/6_reverse_geocode.py")
                 rev_geo_module.run_reverse_geocoder()
+
+            elif task == "7":
+                print("\n>>> [執行功能 7] 啟動 AI 綜合研判 (7_smart_analysis.py)...")
+                analysis_module = import_script("core/7_smart_analysis.py")
+                analysis_module.run_smart_analysis()
 
             else:
                 print(f"\n⚠️ 未知的功能編號 '{task}'，已跳過。")

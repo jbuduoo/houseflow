@@ -64,69 +64,70 @@ SCAN_JS = r"""() => {
 
     const yellowRows = dataRows.filter(tr => isYellow(tr));
     const hasYellow  = yellowRows.length > 0;
-    const targetRow  = hasYellow ? yellowRows[0] : dataRows[0];
-    const tds        = Array.from(targetRow.querySelectorAll('td'));
+    const targetRows = hasYellow ? yellowRows : dataRows;
 
-    // ── 地址提取：掃描所有 td 找「區」和「路/街+號」──
     let district = '';
-    let street   = '';
-    for (let td of tds) {
-        // 改用 textContent，避免 innerText 遺漏隱藏元素
-        const raw = td.textContent.replace(/\s+/g, '').trim();
+    let streets = [];
+    
+    for (let row of targetRows) {
+        const tds = Array.from(row.querySelectorAll('td'));
+        let currentStreet = '';
+        for (let td of tds) {
+            const raw = td.textContent.replace(/\s+/g, '').trim();
 
-        // 行政區：短文字含「區/鄉/鎮」
-        if (!district) {
-            const dm = raw.match(/[^\d,，]{1,5}[區鄉鎮]/);
-            if (dm) district = dm[0];
-        }
-        // 門牌：直接 regex 抓「路/街」到「號」的完整門牌
-        if (!street && (raw.includes('路') || raw.includes('街')) && raw.includes('號')) {
-            const sm = raw.match(/[^\s,，]*[路街][^\s,，]*號[^\s,，]*/);
-            if (sm) {
-                street = sm[0]
-                    // 移除開頭可能的 pin 圖示字元（非中文/數字）
-                    .replace(/^[^一二三四五六七八九十百千萬\d\u4e00-\u9fa5]/, '')
-                    // 移除含狀態關鍵字的括號整組，例如 (已接委託)
-                    .replace(/\([^)]*(?:已接委託|已售|已下架|委託中|已租|結案)[^)]*\)/g, '')
-                    // 移除剩下的狀態文字（不含括號的）
-                    .replace(/已接委託|已售|已下架|委託中|已租|結案/g, '')
-                    // 移除殘留的空括號 ()
-                    .replace(/\(\s*\)/g, '')
-                    .trim();
+            if (!district) {
+                const dm = raw.match(/[^\d,，]{1,5}[區鄉鎮]/);
+                if (dm) district = dm[0];
             }
+            if (!currentStreet && (raw.includes('路') || raw.includes('街')) && raw.includes('號')) {
+                const sm = raw.match(/[^\s,，]*[路街][^\s,，]*號[^\s,，]*/);
+                if (sm) {
+                    currentStreet = sm[0]
+                        .replace(/^[^一二三四五六七八九十百千萬\d\u4e00-\u9fa5]/, '')
+                        .replace(/\([^)]*(?:已接委託|已售|已下架|委託中|已租|結案)[^)]*\)/g, '')
+                        .replace(/已接委託|已售|已下架|委託中|已租|結案/g, '')
+                        .replace(/\(\s*\)/g, '')
+                        .trim();
+                }
+            }
+            if (district && currentStreet) break;
         }
-        if (district && street) break;
+        if (currentStreet && !streets.includes(currentStreet)) {
+            streets.push(currentStreet);
+        }
     }
 
-    // ── 查閱連結提取（只在黃色列中取） ────────────────
+    let finalAddress = '';
+    if (streets.length > 0) {
+        finalAddress = district + streets.join(',');
+    }
+
+    // ── 查閱連結提取（只在黃色列的第一列中取） ────────────────
     let transcriptUrl = '';
-    if (hasYellow) {
-        const links = Array.from(targetRow.querySelectorAll('a'));
+    if (hasYellow && yellowRows.length > 0) {
+        const links = Array.from(yellowRows[0].querySelectorAll('a'));
         for (let a of links) {
             const href = a.href || '';
-            // 優先抓 BuildingDialog / Transcript 格式
             if (href.includes('BuildingDialog') || href.includes('Transcript')) {
                 transcriptUrl = href;
                 break;
             }
-            // 備援：按鈕文字為「查閱」
             if ((a.innerText || '').trim() === '查閱' && href) {
                 transcriptUrl = href;
                 break;
             }
         }
-        // 最後備援：取該列第一個有效 <a>
         if (!transcriptUrl) {
-            const firstA = targetRow.querySelector('a[href]');
+            const firstA = yellowRows[0].querySelector('a[href]');
             if (firstA) transcriptUrl = firstA.href;
         }
     }
 
     return {
         count        : dataRows.length,
-        yellowCount  : yellowRows.length,   // 實際黃色列數
+        yellowCount  : yellowRows.length,
         hasYellow    : hasYellow,
-        address      : district + street,
+        address      : finalAddress,
         transcriptUrl: transcriptUrl
     };
 }"""
@@ -241,15 +242,15 @@ def process_single_task(idx, task, total_tasks, wks):
                     status_symbol = f"✨ {addr}  🔗 查戶籍已填" if t_url else f"✨ {addr}  ⚠️ 無法取得查戶籍連結"
 
                 elif result.get('yellowCount', 0) > 1:
-                    addr = result.get('address', '解析失敗') + f"(需比對{result['yellowCount']}筆)"
-                    status_symbol = f"⚠️ {addr}  [黃色列有 {result['yellowCount']} 筆]"
+                    addr = result.get('address', '解析失敗')
+                    status_symbol = f"⚠️ {addr}"
 
                 elif result.get('count', 0) == 1:
                     addr = result.get('address', '解析失敗') + "(疑似)"
                     status_symbol = f"❓ {addr}"
 
                 else:
-                    addr = result.get('address', '解析失敗') + f"(需比對{result['count']}筆)"
+                    addr = result.get('address', '解析失敗')
                     status_symbol = f"⚠️ {addr}"
 
                 # ── 排隊寫入試算表 ────────────────────────

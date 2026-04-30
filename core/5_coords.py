@@ -149,6 +149,8 @@ def run_coords_enricher():
     except: IDX_W_HF_LAT = 22
     try: IDX_X_HF_LON = headers.index("HF經度")
     except: IDX_X_HF_LON = 23
+    try: IDX_Z_COORD_SRC = headers.index("座標來源")
+    except ValueError: IDX_Z_COORD_SRC = 25
 
     interrupted = False
     try:
@@ -201,7 +203,8 @@ def run_coords_enricher():
                 if lat and lon:
                     update_cells.extend([
                         gspread.Cell(row=row_num, col=IDX_OBJ_LAT + 1, value=lat),
-                        gspread.Cell(row=row_num, col=IDX_OBJ_LON + 1, value=lon)
+                        gspread.Cell(row=row_num, col=IDX_OBJ_LON + 1, value=lon),
+                        gspread.Cell(row=row_num, col=IDX_Z_COORD_SRC + 1, value=method_used)
                     ])
                     updated_obj += 1
                     addr_display = obj_addr.split('(')[0] if obj_addr else "無地址"
