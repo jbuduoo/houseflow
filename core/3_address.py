@@ -24,6 +24,10 @@ COL_URL  = 12   # L欄: 查地址
 COL_ADDR = 13   # M欄: 比對地址 —— 寫入地址結果
 COL_HIST = 14   # N欄: 查戶籍   —— 寫入 Transcript URL
 
+def normalize_fullwidth(text):
+    """將全形數字 ０-９ 轉換為半形 0-9，確保存入試算表的地址格式統一"""
+    return text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+
 # ── 頁面掃描 JS ───────────────────────────────────────
 SCAN_JS = r"""() => {
     // 找到含有地籍資料的表格（標題含「區域」+「坪」）
@@ -254,6 +258,8 @@ def process_single_task(idx, task, total_tasks, wks):
                     status_symbol = f"⚠️ {addr}"
 
                 # ── 排隊寫入試算表 ────────────────────────
+                # 全形數字轉半形，確保地址格式統一
+                addr = normalize_fullwidth(addr)
                 if stop_event.is_set(): return
                 with gspread_lock:
                     wks.update_cell(row_num, COL_ADDR, addr)
