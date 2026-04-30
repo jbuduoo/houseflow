@@ -10,15 +10,18 @@ if not os.path.exists(CREDS_FILE):
     CREDS_FILE = os.path.join(_base_dir, "..", "houseflow_gheet_key.json.json")
 SHEET_KEY  = "1bU4BKbjQgnoNqSK50G4vHgMGBFetHsBrbMyHv2Xc2k0"
 
+def normalize_fullwidth(text):
+    """將全形數字 ０-９ 轉換為半形 0-9，以利後續 Regex 比對"""
+    return text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+
 def extract_street_numbers(address_text):
     """
-    從字串中提取所有路/街及數字門牌
-    例如: "中和路10號,12號" -> ["中和路10號", "12號", "10號"]
-    回傳所有出現過的號碼數字 (以 list 儲存)
+    從字串中提取所有路/街及數字門牌號碼 (同時支援全形/半形)
+    例如: "中山路１７號,１９號" -> ["17", "19"]
     """
     if not address_text: return []
-    # 找尋所有數字+號
-    matches = re.findall(r'(\d+)號', address_text)
+    normalized = normalize_fullwidth(address_text)
+    matches = re.findall(r'(\d+)號', normalized)
     return matches
 
 def smart_analyze(m_val, y_val, z_val):
