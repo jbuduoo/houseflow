@@ -17,10 +17,10 @@ def main():
     print("★" * 60)
 
     print("  [1] 🔍 採集物件 (1_house.py)")
-    print("  [2] 🗑️ 去除重複 ID (2_deduplicate.py)")
+    print("  [2] 🗑️  去除重複 ID (2_deduplicate.py)")
     print("  [3] 📍 地址補完 (3_address.py)")
     print("  [4] 🏠 戶籍/座標擷取 (4_registry.py)")
-    print("  [5] 🗺️ 補齊座標 1.取得信義座標 2.取得的地址及戶籍地址沒有座標的物件 (5_coords.py)")
+    print("  [5] 🗺️  補齊座標 1.取得信義座標 2.取得的地址及戶籍地址沒有座標的物件 (5_coords.py)")
     print("  [6] 📍 地址補完 (座標反查) (6_reverse_geocode.py)")
     print("  [7] 🤖 AI 綜合研判 (7_smart_analysis.py)")
     print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7)")
