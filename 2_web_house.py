@@ -373,6 +373,9 @@ if True:
                 res_popup_html = item_html.replace(
                     f"{row['案件名稱']}</span>",
                     f"{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>"
+                ).replace(
+                    "🏠 房型：",
+                    f"👤 戶籍：{display_res_addr}<br>🏠 房型："
                 )
                 res_locations.append({
                     "loc": res_loc,
