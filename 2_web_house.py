@@ -149,6 +149,8 @@ if os.path.exists(log_path):
 # --- 初始定位流程 ---
 if 'init_done' not in st.session_state:
     st.session_state['init_done'] = False
+if 'gps_triggered' not in st.session_state:
+    st.session_state['gps_triggered'] = False
 
 
 if not st.session_state['init_done']:
@@ -160,29 +162,21 @@ if not st.session_state['init_done']:
         </div>
         """, unsafe_allow_html=True)
 
-        # 強制讓定位組件的 iframe 置中
-        st.markdown("""
-            <style>
-            iframe[title="streamlit_geolocation.streamlit_geolocation"] {
-                display: block;
-                margin-left: auto;
-                margin-right: auto;
-                transform: scale(1.8); /* 放大 1.8 倍 */
-                transform-origin: center;
-                margin-top: 50px;
-                margin-bottom: 50px;
-                height: 60px !important; /* 強制設定高度，防止手機版消失 */
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        # 使用美化的置中按鈕觸發定位
+        _, col_btn, _ = st.columns([1, 2, 1])
+        with col_btn:
+            if st.button("🎯 點此開始搜尋附近物件", use_container_width=True):
+                st.session_state['gps_triggered'] = True
+                st.rerun()
         
-        from streamlit_geolocation import streamlit_geolocation
-        loc = streamlit_geolocation()
-        
-        if loc and loc.get('latitude'):
-            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-            st.session_state['init_done'] = True
-            st.rerun()
+        # 隱藏的定位組件，僅在點擊後執行
+        if st.session_state.get('gps_triggered', False):
+            from streamlit_geolocation import streamlit_geolocation
+            loc = streamlit_geolocation()
+            if loc and loc.get('latitude'):
+                st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+                st.session_state['init_done'] = True
+                st.rerun()
 
     st.stop()
 
