@@ -160,11 +160,24 @@ if not st.session_state['init_done']:
         </div>
         """, unsafe_allow_html=True)
 
-        # 使用內部欄位將定位按鈕置中
-        _, col_gps_btn, _ = st.columns([1, 1, 1])
-        with col_gps_btn:
-            from streamlit_geolocation import streamlit_geolocation
-            loc = streamlit_geolocation()
+        # 強制讓定位組件的 iframe 置中
+        st.markdown("""
+            <style>
+            iframe[title="streamlit_geolocation.streamlit_geolocation"] {
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+                transform: scale(1.5); /* 放大按鈕 1.5 倍 */
+                transform-origin: center;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        from streamlit_geolocation import streamlit_geolocation
+        loc = streamlit_geolocation()
+        
         if loc and loc.get('latitude'):
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
             st.session_state['init_done'] = True
