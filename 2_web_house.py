@@ -186,7 +186,7 @@ if True:
         icon='fa-solid fa-location-arrow',
         iconLoading='fa-solid fa-spinner fa-spin',
         flyTo=True,
-        zoom=19
+        zoom=18
     ).add_to(m)
     
     # 載入 FontAwesome 6 且加上圖示的自訂顏色 CSS
@@ -328,6 +328,8 @@ if True:
             display_text = display_text.replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)')
             # 確保開頭與結尾沒有多餘的 <br>
             display_text = re.sub(r'^(<br>)+|(<br>)+$', '', display_text)
+            # 自動放大地址中原有的 ⌖ 符號
+            display_text = display_text.replace('⌖', '<span style="font-size:20px; vertical-align:middle;">⌖</span>')
             
             type_str = str(row.get('類型', ''))
             layout_str = str(row.get('格局', ''))
@@ -348,7 +350,7 @@ if True:
                 {img_tag}
                 <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
-                    📍 地址：<span style="font-size:20px; vertical-align:middle;">⌖</span>{display_text}<br>
+                    📍 地址：{display_text}<br>
                     🏠 房型：{layout_display}<br>
                     💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
