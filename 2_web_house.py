@@ -146,58 +146,31 @@ if os.path.exists(log_path):
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
 
-# --- RWD 介面佈局 ---
-# 注入 CSS 處理手機與網頁的分流顯示
-st.markdown("""
-    <style>
-    /* 手機版：隱藏側邊欄統計，顯示頂部精簡面板 */
-    @media (max-width: 768px) {
-        .desktop-only { display: none; }
-        .mobile-only { display: block; }
-    }
-    /* 網頁版：顯示側邊欄統計，隱藏頂部面板 */
-    @media (min-width: 769px) {
-        .desktop-only { display: block; }
-        .mobile-only { display: none; }
-    }
-    /* 美化統計卡片 */
-    .stat-card {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
-        border-left: 5px solid #ff4b4b;
-        margin-bottom: 10px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# --- 初始定位流程 ---
+if 'init_done' not in st.session_state:
+    st.session_state['init_done'] = False
 
-DEFAULT_CENTER = [25.0330, 121.5654]
-if 'map_center' not in st.session_state:
-    st.session_state['map_center'] = DEFAULT_CENTER
 
-# --- 側邊欄 (網頁版專用) ---
-with st.sidebar:
-    st.title("📍 住通控制台")
-    st.markdown("---")
-    st.write("### 1. 定位服務")
-    from streamlit_geolocation import streamlit_geolocation
-    loc = streamlit_geolocation()
-    if loc and loc.get('latitude'):
-        if [loc['latitude'], loc['longitude']] != st.session_state['map_center']:
+if not st.session_state['init_done']:
+    _, col_mid, _ = st.columns([1, 2, 1])
+    with col_mid:
+        st.markdown("""
+        <div style='text-align:center; margin-top: 30vh; margin-bottom: 1.5rem;'>
+            <h2>為了精準推薦附近物件，請點選 ⌖ 以開啟定位服務。</h2>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 使用內部欄位將定位按鈕置中
+        _, col_gps_btn, _ = st.columns([1, 1, 1])
+        with col_gps_btn:
+            from streamlit_geolocation import streamlit_geolocation
+            loc = streamlit_geolocation()
+        if loc and loc.get('latitude'):
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+            st.session_state['init_done'] = True
             st.rerun()
-    
-    st.write("### 2. 物件統計")
-    st.info(f"📍 目前中心：{st.session_state['map_center'][0]:.4f}, {st.session_state['map_center'][1]:.4f}")
-    if st.session_state['map_center'] == DEFAULT_CENTER:
-        st.warning("⚠️ 尚未定位，顯示預設區域")
-    else:
-        st.success("✅ 定位成功，已過濾附近物件")
 
-# --- 頂部面板 (手機版專用) ---
-st.markdown('<div class="mobile-only">', unsafe_allow_html=True)
-st.info("🎯 點擊側邊選單或上方按鈕進行定位以顯示物件")
-st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
 
 
 if True:
@@ -397,12 +370,7 @@ if True:
                 is_overlap = (abs(h_lat - res_loc[0]) < 0.0001 and abs(h_lng - res_loc[1]) < 0.0001)
                 
             if not is_overlap and display_res_addr != "待查閱" and res_loc[0] is not None:
-                # 綠色標記需要顯示戶籍資訊
-                res_info_html = f"👤 戶籍：{display_res_addr}<br>"
                 res_popup_html = item_html.replace(
-                    "🏠 房型：", 
-                    f"{res_info_html}🏠 房型："
-                ).replace(
                     f"{row['案件名稱']}</span>",
                     f"{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>"
                 )
