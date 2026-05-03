@@ -167,10 +167,11 @@ if not st.session_state['init_done']:
                 display: block;
                 margin-left: auto;
                 margin-right: auto;
-                transform: scale(1.5); /* 放大按鈕 1.5 倍 */
+                transform: scale(1.8); /* 放大 1.8 倍 */
                 transform-origin: center;
-                margin-top: 20px;
-                margin-bottom: 20px;
+                margin-top: 50px;
+                margin-bottom: 50px;
+                height: 60px !important; /* 強制設定高度，防止手機版消失 */
             }
             </style>
         """, unsafe_allow_html=True)
