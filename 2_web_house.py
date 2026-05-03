@@ -156,7 +156,7 @@ if not st.session_state['init_done']:
     with col_mid:
         st.markdown("""
         <div style='text-align:center; margin-top: 30vh; margin-bottom: 1.5rem;'>
-            <h2>住通要求存取您的位置 </h2>
+            <h2>為了精準推薦附近物件，請點選 $⌖$ 以開啟定位服務。</h2>
         </div>
         """, unsafe_allow_html=True)
 
@@ -325,7 +325,7 @@ if True:
                 qty_is_multi = False
                 
             suffix = " (需比對：多筆)" if qty_is_multi else ""
-            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)').replace(',', ',<br>')
+            display_text = f"{display_obj_addr.replace('新北市','').strip()}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)').replace(',', '<br>').replace(' ', '<br>').replace('<br><br>', '<br>')
             
             type_str = str(row.get('類型', ''))
             layout_str = str(row.get('格局', ''))
