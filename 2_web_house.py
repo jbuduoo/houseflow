@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 import folium
 from folium import plugins
 from streamlit_folium import st_folium
@@ -159,8 +160,11 @@ if not st.session_state['init_done']:
         </div>
         """, unsafe_allow_html=True)
 
-        from streamlit_geolocation import streamlit_geolocation
-        loc = streamlit_geolocation()
+        # 使用內部欄位將定位按鈕置中
+        _, col_gps_btn, _ = st.columns([1, 1, 1])
+        with col_gps_btn:
+            from streamlit_geolocation import streamlit_geolocation
+            loc = streamlit_geolocation()
         if loc and loc.get('latitude'):
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
             st.session_state['init_done'] = True
@@ -317,7 +321,13 @@ if True:
                 qty_is_multi = False
                 
             suffix = " (需比對：多筆)" if qty_is_multi else ""
-            display_text = f"{display_obj_addr.replace('新北市','').strip()}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)').replace(',', '<br>').replace(' ', '<br>').replace('<br><br>', '<br>')
+            # 強力分行邏輯：將各種空白與逗號轉為 <br>
+            raw_addr_cleaned = f"{display_obj_addr.replace('新北市','').strip()}{suffix}"
+            display_text = re.sub(r'[\s,，]+', '<br>', raw_addr_cleaned)
+            display_text = display_text.replace('<br>⭐', ' ⭐') # 星號不換行
+            display_text = display_text.replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)')
+            # 確保開頭與結尾沒有多餘的 <br>
+            display_text = re.sub(r'^(<br>)+|(<br>)+$', '', display_text)
             
             type_str = str(row.get('類型', ''))
             layout_str = str(row.get('格局', ''))
