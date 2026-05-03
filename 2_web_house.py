@@ -305,7 +305,10 @@ if True:
             except (ValueError, TypeError):
                 res_loc = [None, None]
 
-            display_obj_addr = str(row.get('查地址', '')).strip()
+            # 優先取得 AA 欄 (AI 結論) 的資料
+            display_obj_addr = str(row.get('AI 結論', '')).strip()
+            if not display_obj_addr:
+                display_obj_addr = str(row.get('查地址', '')).strip()
             if not display_obj_addr:
                 display_obj_addr = str(row.get('物件地址', '')).strip()
 
