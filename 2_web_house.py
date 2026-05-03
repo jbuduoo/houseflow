@@ -102,8 +102,33 @@ def get_gspread_client():
 def load_data_from_gsheet():
     client = get_gspread_client()
     sheet = client.open_by_key(SHEET_KEY).sheet1
-    data = sheet.get_all_records()
-    return pd.DataFrame(data)
+    
+    # get_all_records() 會在有重複或空欄位標題時報錯
+    # 改用 get_all_values() 並手動處理標題
+    all_values = sheet.get_all_values()
+    if not all_values:
+        return pd.DataFrame()
+        
+    headers = all_values[0]
+    data = all_values[1:]
+    
+    # 清理標題：處理重複與空值
+    clean_headers = []
+    seen = {}
+    for i, h in enumerate(headers):
+        h = h.strip()
+        if not h:
+            h = f"Unnamed_{i}"
+        
+        if h in seen:
+            seen[h] += 1
+            new_h = f"{h}_{seen[h]}"
+            clean_headers.append(new_h)
+        else:
+            seen[h] = 0
+            clean_headers.append(h)
+            
+    return pd.DataFrame(data, columns=clean_headers)
 
 from folium.plugins import MarkerCluster
 
