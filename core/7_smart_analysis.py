@@ -92,8 +92,8 @@ def build_conclusion(m_val, y_val, z_val):
         return "\n".join(lines)
     else:
         # GPS 不吻合：顯示住通地址 + 定位地址
-        m_lines = "\n".join([f"住通：{addr}" for addr in addrs])
-        return f"{m_lines}\n定位：{y_val}"
+        m_lines = "\n".join([f"{addr}" for addr in addrs])
+        return f"{m_lines}\n⌖{y_val}"
 
 
 def run_smart_analysis():
