@@ -147,17 +147,25 @@ if os.path.exists(log_path):
 
 
 # --- 初始定位邏輯 ---
-# 預設中心點 (台北市)
 DEFAULT_CENTER = [25.0330, 121.5654]
 
 if 'map_center' not in st.session_state:
     st.session_state['map_center'] = DEFAULT_CENTER
 
-# 在頁面最上方顯示定位引導
-if st.session_state.get('map_center') == DEFAULT_CENTER:
-    st.warning("📍 為了精準推薦附近物件，請點選地圖左上角的 ⌖ 圖示進行定位。")
-else:
-    st.success("✅ 已根據您的位置推薦附近物件。")
+# 建立一個醒目的定位按鈕區塊，將座標傳回後台
+st.info("💡 歡迎使用住通地圖！請先點擊下方圖示進行定位，系統將自動顯示您附近的物件。")
+col_l, col_m, col_r = st.columns([1, 1, 1])
+with col_m:
+    from streamlit_geolocation import streamlit_geolocation
+    loc = streamlit_geolocation()
+    if loc and loc.get('latitude'):
+        if [loc['latitude'], loc['longitude']] != st.session_state['map_center']:
+            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+            st.rerun()
+
+# 如果還是預設值，提醒使用者
+if st.session_state['map_center'] == DEFAULT_CENTER:
+    st.warning("⚠️ 目前顯示預設區域（台北市）。若要查看所在地附近物件，請務必點擊上方的 ⌖ 圖示並允許定位權限。")
 
 
 if True:
