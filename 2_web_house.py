@@ -154,32 +154,26 @@ if 'gps_triggered' not in st.session_state:
 
 
 if not st.session_state['init_done']:
-    # 使用三欄佈局模擬「文字 + 圖示 + 文字」的排版
-    # 在網頁版會在一行，手機版會垂直堆疊但保持置中
+    # 採用垂直置中佈局，確保手機與網頁一致
     st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-    col_left, col_mid_gps, col_right = st.columns([1.5, 0.3, 1.5])
+    st.markdown("<h2 style='text-align: center; margin-bottom: 0;'>為了精準推薦附近物件</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; margin-top: 10px;'>請開啟定位服務</h2>", unsafe_allow_html=True)
     
-    with col_left:
-        st.markdown("<h3 style='text-align: right; margin-top: 10px;'>為了精準推薦附近物件，請點選</h3>", unsafe_allow_html=True)
+    # 強制定位組件置中且不塌陷
+    st.markdown("""
+        <style>
+        iframe[title="streamlit_geolocation.streamlit_geolocation"] {
+            display: block;
+            margin: 20px auto !important;
+            height: 80px !important;
+            width: 80px !important;
+            border: none;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     
-    with col_mid_gps:
-        # 微調定位圖示的樣式
-        st.markdown("""
-            <style>
-            iframe[title="streamlit_geolocation.streamlit_geolocation"] {
-                display: block;
-                margin-left: auto;
-                margin-right: auto;
-                transform: scale(1.5);
-                height: 50px !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-        from streamlit_geolocation import streamlit_geolocation
-        loc = streamlit_geolocation()
-    
-    with col_right:
-        st.markdown("<h3 style='text-align: left; margin-top: 10px;'>以開啟定位服務。</h3>", unsafe_allow_html=True)
+    from streamlit_geolocation import streamlit_geolocation
+    loc = streamlit_geolocation()
 
     if loc and loc.get('latitude'):
         st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
