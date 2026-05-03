@@ -146,34 +146,18 @@ if os.path.exists(log_path):
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
 
-# --- 初始定位流程 ---
-if 'init_done' not in st.session_state:
-    st.session_state['init_done'] = False
-if 'gps_triggered' not in st.session_state:
-    st.session_state['gps_triggered'] = False
+# --- 初始定位邏輯 ---
+# 預設中心點 (台北市)
+DEFAULT_CENTER = [25.0330, 121.5654]
 
+if 'map_center' not in st.session_state:
+    st.session_state['map_center'] = DEFAULT_CENTER
 
-if not st.session_state['init_done']:
-    # 採用最穩定的兩步式啟動：大按鈕 -> 定位組件
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; margin-bottom: 30px;'>為了精準推薦附近物件<br>請點擊下方按鈕啟動</h2>", unsafe_allow_html=True)
-    
-    _, col_main, _ = st.columns([1, 2, 1])
-    with col_main:
-        if st.button("🎯 進入地圖系統 (啟動定位)", use_container_width=True, type="primary"):
-            st.session_state['gps_triggered'] = True
-            st.rerun()
-
-    # 當按下大按鈕後，才顯示定位組件（此時組件會自動嘗試抓取位置）
-    if st.session_state.get('gps_triggered', False):
-        from streamlit_geolocation import streamlit_geolocation
-        loc = streamlit_geolocation()
-        if loc and loc.get('latitude'):
-            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-            st.session_state['init_done'] = True
-            st.rerun()
-
-    st.stop()
+# 在頁面最上方顯示定位引導
+if st.session_state.get('map_center') == DEFAULT_CENTER:
+    st.warning("📍 為了精準推薦附近物件，請點選地圖左上角的 ⌖ 圖示進行定位。")
+else:
+    st.success("✅ 已根據您的位置推薦附近物件。")
 
 
 if True:
