@@ -348,8 +348,8 @@ if True:
                 {img_tag}
                 <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
-                    📍 地址：{display_text}<br>
-                    {res_addr_html}🏠 房型：{layout_display}<br>
+                    📍 地址：<span style="font-size:20px; vertical-align:middle;">⌖</span>{display_text}<br>
+                    🏠 房型：{layout_display}<br>
                     💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
                 {links_block}
