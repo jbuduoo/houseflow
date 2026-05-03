@@ -146,26 +146,58 @@ if os.path.exists(log_path):
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
 
-# --- 初始定位邏輯 ---
-DEFAULT_CENTER = [25.0330, 121.5654]
+# --- RWD 介面佈局 ---
+# 注入 CSS 處理手機與網頁的分流顯示
+st.markdown("""
+    <style>
+    /* 手機版：隱藏側邊欄統計，顯示頂部精簡面板 */
+    @media (max-width: 768px) {
+        .desktop-only { display: none; }
+        .mobile-only { display: block; }
+    }
+    /* 網頁版：顯示側邊欄統計，隱藏頂部面板 */
+    @media (min-width: 769px) {
+        .desktop-only { display: block; }
+        .mobile-only { display: none; }
+    }
+    /* 美化統計卡片 */
+    .stat-card {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 5px solid #ff4b4b;
+        margin-bottom: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
+DEFAULT_CENTER = [25.0330, 121.5654]
 if 'map_center' not in st.session_state:
     st.session_state['map_center'] = DEFAULT_CENTER
 
-# 建立一個醒目的定位按鈕區塊，將座標傳回後台
-st.info("💡 歡迎使用住通地圖！請先點擊下方圖示進行定位，系統將自動顯示您附近的物件。")
-col_l, col_m, col_r = st.columns([1, 1, 1])
-with col_m:
+# --- 側邊欄 (網頁版專用) ---
+with st.sidebar:
+    st.title("📍 住通控制台")
+    st.markdown("---")
+    st.write("### 1. 定位服務")
     from streamlit_geolocation import streamlit_geolocation
     loc = streamlit_geolocation()
     if loc and loc.get('latitude'):
         if [loc['latitude'], loc['longitude']] != st.session_state['map_center']:
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
             st.rerun()
+    
+    st.write("### 2. 物件統計")
+    st.info(f"📍 目前中心：{st.session_state['map_center'][0]:.4f}, {st.session_state['map_center'][1]:.4f}")
+    if st.session_state['map_center'] == DEFAULT_CENTER:
+        st.warning("⚠️ 尚未定位，顯示預設區域")
+    else:
+        st.success("✅ 定位成功，已過濾附近物件")
 
-# 如果還是預設值，提醒使用者
-if st.session_state['map_center'] == DEFAULT_CENTER:
-    st.warning("⚠️ 目前顯示預設區域（台北市）。若要查看所在地附近物件，請務必點擊上方的 ⌖ 圖示並允許定位權限。")
+# --- 頂部面板 (手機版專用) ---
+st.markdown('<div class="mobile-only">', unsafe_allow_html=True)
+st.info("🎯 點擊側邊選單或上方按鈕進行定位以顯示物件")
+st.markdown('</div>', unsafe_allow_html=True)
 
 
 if True:
