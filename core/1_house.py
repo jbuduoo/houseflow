@@ -261,9 +261,23 @@ def run_map_scraper():
                 else:
                     new_rows.append(d)
             
-            if update_cells: wks.update_cells(update_cells)
-            if new_rows: wks.append_rows(new_rows)
-            print("🎉 v64 來源仲介採集成功！")
+            if update_cells: 
+                print(f"  ...正在更新 {len(update_cells)} 個儲存格...")
+                wks.update_cells(update_cells)
+            if new_rows: 
+                old_count = len(wks.get_all_values())
+                print(f"  ...正在插入 {len(new_rows)} 筆新物件至「{wks.title}」最上方...")
+                wks.insert_rows(new_rows, 2)
+                new_count = len(wks.get_all_values())
+                print(f"  ...寫入完成。列數變化: {old_count} -> {new_count}")
+                print(f"  ...首筆新增 ID: {new_rows[0][0]}")
+            
+            print(f"\n🎉 採集任務完成！")
+            print(f"📊 統計報告：")
+            print(f"   - 工作表分頁: {wks.title}")
+            print(f"   - 掃描總數: {len(seen_in_this_run)} 筆")
+            print(f"   - 新增資料: {len(new_rows)} 筆")
+            print(f"   - 更新資料: {len(all_data) - len(new_rows)} 筆")
         browser_context.close()
 
         if interrupted:

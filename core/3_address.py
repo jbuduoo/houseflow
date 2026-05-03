@@ -1,6 +1,7 @@
 import time
 import os
 import gspread
+import msvcrt
 from oauth2client.service_account import ServiceAccountCredentials
 from playwright.sync_api import sync_playwright
 
@@ -209,8 +210,25 @@ def process_single_task(idx, task, total_tasks, wks):
                         if result is None:
                             safe_print('\a\n⚠️ ====================================================')
                             safe_print(f"❌ 警告: ID:{case_id} 找不到資料表！可能是尚未登入！")
-                            ans = input("    >>> [人工介入] 請處理好 Chrome 登入後按 Enter 重試 (或輸入 n 放棄此筆): ").strip().lower()
-                            
+                            # 改為 5 秒倒數自動重試
+                            safe_print(f"    >>> [人工介入] 請處理好 Chrome 登入 (5秒後自動重試，輸入 n 放棄): ", end="", flush=True)
+                            ans = ""
+                            for i in range(5, 0, -1):
+                                safe_print(f"{i}..", end="", flush=True)
+                                start_wait = time.time()
+                                while time.time() - start_wait < 1:
+                                    if msvcrt.kbhit():
+                                        char = msvcrt.getwche().lower()
+                                        if char == 'n':
+                                            ans = 'n'
+                                            break
+                                        if char in ['\r', '\n']:
+                                            i = 0
+                                            break
+                                    time.sleep(0.1)
+                                if ans == 'n' or i == 0: break
+                            safe_print(" [開始重試]")
+
                             if ans != 'n':
                                 safe_print(f"    [系統] ID:{case_id} 重新載入頁面重試中...")
                                 page.goto(url, wait_until="load", timeout=45000)
