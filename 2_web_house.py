@@ -322,7 +322,7 @@ if True:
                 qty_is_multi = False
                 
             suffix = " (需比對：多筆)" if qty_is_multi else ""
-            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)')
+            display_text = f"{display_obj_addr.replace('新北市','')}{suffix}".replace('(多筆)(需比對：多筆)', '(需比對多筆)').replace('(多筆)', '(需比對多筆)').replace(',', ',<br>')
             
             type_str = str(row.get('類型', ''))
             layout_str = str(row.get('格局', ''))
@@ -336,14 +336,14 @@ if True:
                 </div>
             """
             
-            res_addr_html = f"👤 研判戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
+            res_addr_html = f"👤 戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
 
             # --- 單筆物件 Popup HTML ---
             item_html = f"""
                 {img_tag}
                 <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
-                    📍 推估地址：{display_text}<br>
+                    📍 地址：{display_text}<br>
                     {res_addr_html}🏠 房型：{layout_display}<br>
                     💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
