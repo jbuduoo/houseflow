@@ -154,36 +154,24 @@ if 'gps_triggered' not in st.session_state:
 
 
 if not st.session_state['init_done']:
-    # 採用垂直置中佈局，確保手機與網頁一致
+    # 採用最穩定的兩步式啟動：大按鈕 -> 定位組件
     st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; margin-bottom: 0;'>為了精準推薦附近物件</h2>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; margin-top: 10px;'>請開啟定位服務</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; margin-bottom: 30px;'>為了精準推薦附近物件<br>請點擊下方按鈕啟動</h2>", unsafe_allow_html=True)
     
-    # 強制定位組件放大並增加點擊感
-    st.markdown("""
-        <style>
-        iframe[title="streamlit_geolocation.streamlit_geolocation"] {
-            display: block;
-            margin: 30px auto !important;
-            height: 120px !important;
-            width: 150px !important;
-            border-radius: 20px;
-            background-color: #f0f2f6; /* 增加淺灰色背景，讓它像個大按鈕 */
-            border: 2px solid #ddd;
-            transform: scale(2.5); /* 大幅放大點擊範圍 */
-            transform-origin: center;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<p style='text-align: center; color: #666;'>請點擊下方圖示啟動</p>", unsafe_allow_html=True)
-    from streamlit_geolocation import streamlit_geolocation
-    loc = streamlit_geolocation()
+    _, col_main, _ = st.columns([1, 2, 1])
+    with col_main:
+        if st.button("🎯 進入地圖系統 (啟動定位)", use_container_width=True, type="primary"):
+            st.session_state['gps_triggered'] = True
+            st.rerun()
 
-    if loc and loc.get('latitude'):
-        st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
-        st.session_state['init_done'] = True
-        st.rerun()
+    # 當按下大按鈕後，才顯示定位組件（此時組件會自動嘗試抓取位置）
+    if st.session_state.get('gps_triggered', False):
+        from streamlit_geolocation import streamlit_geolocation
+        loc = streamlit_geolocation()
+        if loc and loc.get('latitude'):
+            st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
+            st.session_state['init_done'] = True
+            st.rerun()
 
     st.stop()
 
