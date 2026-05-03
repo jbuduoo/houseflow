@@ -370,7 +370,12 @@ if True:
                 is_overlap = (abs(h_lat - res_loc[0]) < 0.0001 and abs(h_lng - res_loc[1]) < 0.0001)
                 
             if not is_overlap and display_res_addr != "待查閱" and res_loc[0] is not None:
+                # 綠色標記需要顯示戶籍資訊
+                res_info_html = f"👤 戶籍：{display_res_addr}<br>"
                 res_popup_html = item_html.replace(
+                    "🏠 房型：", 
+                    f"{res_info_html}🏠 房型："
+                ).replace(
                     f"{row['案件名稱']}</span>",
                     f"{row['案件名稱']}<span style='color:#28a745; font-size:16px;'>(屋主戶籍地)</span></span>"
                 )
