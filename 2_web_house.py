@@ -512,6 +512,8 @@ if True:
                 break
         
         if matched_row is not None:
+            curr_id = str(matched_row.get('ID', matched_row.get('物件ID', '0')))
+            
             st.sidebar.markdown("---")
             st.sidebar.subheader("🎯 當前選取物件")
             st.sidebar.write(f"**{matched_row.get('案件名稱', '未知物件')}**")
@@ -519,30 +521,30 @@ if True:
             target_url = matched_row.get('網頁連結', '')
             if target_url:
                 with st.sidebar:
-                    with st.spinner("正在偵測連結狀態..."):
-                        status = check_link_health(target_url)
-                        
-                        # 紀錄足跡 (同一 Session 同一物件只記一次，避免重複刷新重複記)
-                        log_key = f"logged_{matched_row.get('ID', '0')}"
-                        if log_key not in st.session_state:
+                    # 只有當點擊的是不同物件時，才顯示載入動畫並紀錄
+                    if st.session_state.get('last_clicked_id') != curr_id:
+                        with st.spinner("正在偵測連結狀態..."):
+                            status = check_link_health(target_url)
                             device_info = get_device_name()
                             log_to_gsheet(device_info, target_url, status)
-                            st.session_state[log_key] = True
-                        
-                        if status == "T":
-                            st.success("✅ 連結有效")
-                        else:
-                            st.error("❌ 連結可能已失效或異常")
-                        
-                        st.link_button("👉 前往同行網頁", target_url, use_container_width=True)
+                            st.session_state['last_clicked_id'] = curr_id
+                            st.session_state[f"status_{curr_id}"] = status
+                    
+                    # 顯示快取好的狀態
+                    status = st.session_state.get(f"status_{curr_id}", "T")
+                    if status == "T":
+                        st.success("✅ 連結有效")
+                    else:
+                        st.error("❌ 連結可能已失效或異常")
+                    
+                    st.link_button("👉 前往同行網頁", target_url, use_container_width=True)
 
     end_time = time.time()
     st.markdown(f"""
     <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
         ⏱️ 載入時間：{end_time - start_time:.2f} 秒<br>
         📍 顯示物件：{count_rendered} 筆<br>
-        <a href="./?jump=test" target="_self" style="color: #ffeb3b; text-decoration: none; font-size: 12px; border: 1px solid #ffeb3b; padding: 2px 6px; border-radius: 4px; margin-top: 6px; display: inline-block;">🔍 跳轉至中和路 (測試用)</a><br>
-        <span style="font-size:12px; color:#aaa;">💡 使用左上角 🎯 按鈕定位至當前位置</span>
+        <a href="./?jump=test" target="_self" style="color: #ffeb3b; text-decoration: none; font-size: 12px; border: 1px solid #ffeb3b; padding: 2px 6px; border-radius: 4px; margin-top: 6px; display: inline-block;">🔍 跳轉至中和路 (測試用)</a>
     </div>
     """, unsafe_allow_html=True)
 
