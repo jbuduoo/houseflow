@@ -220,6 +220,13 @@ def get_deterministic_jitter(id_str, scale=0.0006):
 if 'init_done' not in st.session_state:
     st.session_state['init_done'] = False
 
+# 處理測試跳轉請求
+if st.query_params.get("jump") == "test":
+    st.session_state['map_center'] = [25.0001, 121.5065] # 中和路 466 號
+    st.session_state['init_done'] = True
+    st.query_params.clear()
+    st.rerun()
+
 
 if not st.session_state['init_done']:
     _, col_mid, _ = st.columns([1, 2, 1])
@@ -534,6 +541,7 @@ if True:
     <div style='position: fixed; top: 15px; right: 15px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 8px; z-index: 999999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>
         ⏱️ 載入時間：{end_time - start_time:.2f} 秒<br>
         📍 顯示物件：{count_rendered} 筆<br>
+        <a href="./?jump=test" target="_self" style="color: #ffeb3b; text-decoration: none; font-size: 12px; border: 1px solid #ffeb3b; padding: 2px 6px; border-radius: 4px; margin-top: 6px; display: inline-block;">🔍 跳轉至中和路 (測試用)</a><br>
         <span style="font-size:12px; color:#aaa;">💡 使用左上角 🎯 按鈕定位至當前位置</span>
     </div>
     """, unsafe_allow_html=True)
