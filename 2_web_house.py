@@ -257,7 +257,7 @@ if True:
 
 
     # 以 session_state 內的中心點建立地圖
-    m = folium.Map(location=[c_lat, c_lng], zoom_start=17, min_zoom=17, max_zoom=19, tiles="OpenStreetMap")
+    m = folium.Map(location=[c_lat, c_lng], zoom_start=17, min_zoom=17, max_zoom=20, tiles="OpenStreetMap")
     
     # 載入 FontAwesome 6
     from folium import Element
