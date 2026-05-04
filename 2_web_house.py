@@ -11,6 +11,7 @@ from datetime import datetime
 import time
 import requests
 import hashlib
+import threading
 
 start_time = time.time()
 
@@ -246,10 +247,10 @@ if not st.session_state['init_done']:
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
             st.session_state['init_done'] = True
             
-            # --- 新增：定位成功即紀錄足跡 ---
+            # --- 新增：定位成功即紀錄足跡 (改為背景執行避免卡頓) ---
             try:
                 device_info = get_device_name()
-                log_to_gsheet(device_info, "定位成功 (使用者開啟地圖)", "T")
+                threading.Thread(target=log_to_gsheet, args=(device_info, "定位成功 (使用者開啟地圖)", "T")).start()
             except:
                 pass
                 
