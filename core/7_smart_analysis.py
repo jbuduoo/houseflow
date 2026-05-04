@@ -42,8 +42,8 @@ def build_conclusion(m_val, y_val, z_val):
     依照業務邏輯建立 AA 欄的輸出文字：
     - GPS 命中：地址(星號)
     - 多筆含命中：命中地址(星號) + 其他地址
-    - GPS 不吻合：住通：M地址 + 定位：Y地址
-    - 查無 + 有 GPS：定位：Y地址
+    - GPS 不吻合：地址 + ⌖地址
+    - 查無 + 有 GPS：⌖Y地址
     - 查無 + 無 GPS：查無
     """
     m_val = normalize_fullwidth(str(m_val).strip())
@@ -60,7 +60,7 @@ def build_conclusion(m_val, y_val, z_val):
     # ── 情況一：查無 ──────────────────────────────────
     if is_not_found:
         if has_gps:
-            return f"定位：{y_val}"
+            return f"⌖{y_val}"
         else:
             return "查無"
 

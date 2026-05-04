@@ -208,13 +208,6 @@ if os.path.exists(log_path):
     logs_all = pd.read_csv(log_path)
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
 
-def get_deterministic_jitter(id_str, scale=0.0006):
-    """根據 ID 產生固定的微小位移，確保座標穩定且不完全重疊"""
-    h = int(hashlib.md5(str(id_str).encode()).hexdigest(), 16)
-    # 產生 -1.0 到 1.0 之間的固定浮點數
-    j_lat = ((h % 2000) - 1000) / 1000.0
-    j_lng = (((h // 2000) % 2000) - 1000) / 1000.0
-    return j_lat * scale, j_lng * scale
 
 
 # --- 初始定位流程 ---
@@ -356,11 +349,9 @@ if True:
 
     # 處理每一筆或分群
     for (h_lat, h_lng), rows in grouped_houses.items():
-        # 使用第一筆資料的 ID 來決定固定位移
-        base_id = str(rows[0].get('ID', rows[0].get('物件ID', '')))
-        j_lat, j_lng = get_deterministic_jitter(base_id)
-        final_lat = h_lat + j_lat
-        final_lng = h_lng + j_lng
+        # 取消位移邏輯，讓點位 100% 落在座標上
+        final_lat = h_lat
+        final_lng = h_lng
         
         group_size = len(rows)
         count_rendered += group_size
@@ -469,21 +460,33 @@ if True:
             marker_text = "🏠" if visit_count == 0 else str(visit_count)
             tooltip_text = first_display_text
             
-        # 畫出紅色物件標記
+        # 畫出紅色物件標記 (升級為圖釘型)
+        marker_html = f'''
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>
+            <div style="width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 12px solid white; margin-top: -4px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));"></div>
+        </div>
+        '''
         folium.Marker(
             location=[final_lat, final_lng],
             popup=folium.Popup(combined_popup_html, max_width=320),
-            icon=folium.DivIcon(html=f'<div style="{base_style}background-color:red;width:38px;height:38px;font-size:16px;">{marker_text}</div>', icon_anchor=(19, 19))
+            icon=folium.DivIcon(html=marker_html, icon_anchor=(19, 46))
         ).add_to(marker_group)
 
-        # 畫出綠色戶籍標記
+        # 畫出綠色戶籍標記 (升級為圖釘型)
         for res in res_locations:
             res_lat = res["loc"][0] + random.uniform(-0.001, 0.001)
             res_lng = res["loc"][1] + random.uniform(-0.001, 0.001)
+            res_marker_html = f'''
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>
+                <div style="width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 12px solid white; margin-top: -4px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));"></div>
+            </div>
+            '''
             folium.Marker(
                 location=[res_lat, res_lng],
                 popup=folium.Popup(res["html"], max_width=300),
-                icon=folium.DivIcon(html=f'<div style="{base_style}background-color:#28a745;width:38px;height:38px;font-size:16px;"><i class="fa fa-user"></i></div>', icon_anchor=(19, 19))
+                icon=folium.DivIcon(html=res_marker_html, icon_anchor=(19, 46))
             ).add_to(marker_group)
 
 
