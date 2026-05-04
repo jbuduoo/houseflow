@@ -266,22 +266,10 @@ if True:
     # 以 session_state 內的中心點建立地圖
     m = folium.Map(location=[c_lat, c_lng], zoom_start=17, min_zoom=17, max_zoom=18, tiles="OpenStreetMap")
     
-    # 修改定位按鈕圖示與顏色
-    plugins.LocateControl(
-        auto_start=False, 
-        icon='fa-solid fa-location-arrow',
-        iconLoading='fa-solid fa-spinner fa-spin',
-        flyTo=True,
-        zoom=18
-    ).add_to(m)
-    
-    # 載入 FontAwesome 6 且加上圖示的自訂顏色 CSS
+    # 載入 FontAwesome 6
     from folium import Element
     m.get_root().html.add_child(Element('''
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-        <style>
-            .fa-location-arrow { color: rgb(116, 192, 252) !important; font-size: 24px !important; }
-        </style>
     '''))
     
     # --- 加入「目前位置」標記與搜尋半徑圈 ---
