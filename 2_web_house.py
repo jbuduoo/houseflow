@@ -9,6 +9,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import time
+import requests
+import hashlib
 
 start_time = time.time()
 
@@ -131,6 +133,66 @@ def load_data_from_gsheet():
             
     return pd.DataFrame(data, columns=clean_headers)
 
+@st.cache_data(ttl=86400)
+def check_link_health(url):
+    """檢查網址是否有效，24 小時內相同網址只查一次"""
+    if not url or not url.startswith('http'):
+        return "F"
+    try:
+        # 使用 HEAD 請求，只取標頭不下載網頁，速度極快
+        res = requests.head(url, timeout=3, allow_redirects=True)
+        return "T" if res.status_code == 200 else "F"
+    except:
+        return "F"
+
+def log_to_gsheet(user_device, house_url, status):
+    """將足跡紀錄寫回 Google Sheets 的 Logs 分頁 (由上而下插入)"""
+    try:
+        client = get_gspread_client()
+        spreadsheet = client.open_by_key(SHEET_KEY)
+        
+        # 尋找或建立 Logs 工作表
+        try:
+            log_sheet = spreadsheet.worksheet("Logs")
+        except:
+            # 若不存在則建立，並加上標題列
+            log_sheet = spreadsheet.add_worksheet(title="Logs", rows=1000, cols=4)
+            log_sheet.insert_row(["時間", "使用者", "物件網址", "連結狀態"], 1)
+        
+        # 準備新資料
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_row = [now_str, user_device, house_url, status]
+        
+        # 插入在第 2 列 (標題下方)
+        log_sheet.insert_row(new_row, 2)
+    except Exception as e:
+        print(f"Log Error: {e}")
+
+def get_device_name():
+    """從 User-Agent 嘗試辨識手機型號"""
+    ua = ""
+    try:
+        # Streamlit 1.56.0 支援 st.context.headers
+        ua = st.context.headers.get("User-Agent", "")
+    except:
+        pass
+    
+    device = "Unknown"
+    if "iPhone" in ua:
+        # 嘗試從 UA 抓取型號資訊 (簡化版)
+        device = "iPhone"
+    elif "Android" in ua:
+        device = "Android"
+        if "Samsung" in ua: device = "Samsung"
+        elif "Pixel" in ua: device = "Pixel"
+    
+    # 產生一個 Session 級別的 ID (若要跨 Session 永久固定，需使用 Cookie)
+    if 'device_id' not in st.session_state:
+        import random
+        st.session_state['device_id'] = random.randint(1000, 9999)
+    
+    return f"{device}-{st.session_state['device_id']}"
+
 from folium.plugins import MarkerCluster
 
 # --- 2. 主程式流程 ---
@@ -144,6 +206,14 @@ log_path = os.path.join(os.path.dirname(__file__), "houseflow_visit_logs.csv")
 if os.path.exists(log_path):
     logs_all = pd.read_csv(log_path)
     visit_counts = logs_all['物件ID'].astype(str).value_counts().to_dict()
+
+def get_deterministic_jitter(id_str, scale=0.0006):
+    """根據 ID 產生固定的微小位移，確保座標穩定且不完全重疊"""
+    h = int(hashlib.md5(str(id_str).encode()).hexdigest(), 16)
+    # 產生 -1.0 到 1.0 之間的固定浮點數
+    j_lat = ((h % 2000) - 1000) / 1000.0
+    j_lng = (((h // 2000) % 2000) - 1000) / 1000.0
+    return j_lat * scale, j_lng * scale
 
 
 # --- 初始定位流程 ---
@@ -282,10 +352,11 @@ if True:
 
     # 處理每一筆或分群
     for (h_lat, h_lng), rows in grouped_houses.items():
-        jitter_lat = random.uniform(-0.001, 0.001)
-        jitter_lng = random.uniform(-0.001, 0.001)
-        final_lat = h_lat + jitter_lat
-        final_lng = h_lng + jitter_lng
+        # 使用第一筆資料的 ID 來決定固定位移
+        base_id = str(rows[0].get('ID', rows[0].get('物件ID', '')))
+        j_lat, j_lng = get_deterministic_jitter(base_id)
+        final_lat = h_lat + j_lat
+        final_lng = h_lng + j_lng
         
         group_size = len(rows)
         count_rendered += group_size
@@ -412,7 +483,51 @@ if True:
             ).add_to(marker_group)
 
 
-    st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
+    # --- 處理地圖點擊互動 ---
+    output = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_object_clicked"])
+
+    if output and output.get("last_object_clicked"):
+        click_lat = output["last_object_clicked"]["lat"]
+        click_lng = output["last_object_clicked"]["lng"]
+        
+        # 比對座標找出被點擊的物件
+        matched_row = None
+        min_dist = 9999
+        for (h_lat, h_lng), rows in grouped_houses.items():
+            base_id = str(rows[0].get('ID', rows[0].get('物件ID', '')))
+            j_lat, j_lng = get_deterministic_jitter(base_id)
+            final_lat, final_lng = h_lat + j_lat, h_lng + j_lng
+            
+            # 計算歐幾里得距離 (極小範圍內可用)
+            dist = ((final_lat - click_lat)**2 + (final_lng - click_lng)**2)**0.5
+            if dist < 0.00005: # 非常接近才算
+                matched_row = rows[0]
+                break
+        
+        if matched_row is not None:
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("🎯 當前選取物件")
+            st.sidebar.write(f"**{matched_row.get('案件名稱', '未知物件')}**")
+            
+            target_url = matched_row.get('網頁連結', '')
+            if target_url:
+                with st.sidebar:
+                    with st.spinner("正在偵測連結狀態..."):
+                        status = check_link_health(target_url)
+                        
+                        # 紀錄足跡 (同一 Session 同一物件只記一次，避免重複刷新重複記)
+                        log_key = f"logged_{matched_row.get('ID', '0')}"
+                        if log_key not in st.session_state:
+                            device_info = get_device_name()
+                            log_to_gsheet(device_info, target_url, status)
+                            st.session_state[log_key] = True
+                        
+                        if status == "T":
+                            st.success("✅ 連結有效")
+                        else:
+                            st.error("❌ 連結可能已失效或異常")
+                        
+                        st.link_button("👉 前往同行網頁", target_url, use_container_width=True)
 
     end_time = time.time()
     st.markdown(f"""
