@@ -245,6 +245,14 @@ if not st.session_state['init_done']:
         if loc and loc.get('latitude'):
             st.session_state['map_center'] = [loc['latitude'], loc['longitude']]
             st.session_state['init_done'] = True
+            
+            # --- 新增：定位成功即紀錄足跡 ---
+            try:
+                device_info = get_device_name()
+                log_to_gsheet(device_info, "定位成功 (使用者開啟地圖)", "T")
+            except:
+                pass
+                
             st.rerun()
 
     st.stop()
@@ -490,54 +498,8 @@ if True:
             ).add_to(marker_group)
 
 
-    # --- 處理地圖點擊互動 ---
-    output = st_folium(m, width="stretch", height=700, key="image_map", returned_objects=["last_object_clicked"])
-
-    if output and output.get("last_object_clicked"):
-        click_lat = output["last_object_clicked"]["lat"]
-        click_lng = output["last_object_clicked"]["lng"]
-        
-        # 比對座標找出被點擊的物件
-        matched_row = None
-        min_dist = 9999
-        for (h_lat, h_lng), rows in grouped_houses.items():
-            base_id = str(rows[0].get('ID', rows[0].get('物件ID', '')))
-            j_lat, j_lng = get_deterministic_jitter(base_id)
-            final_lat, final_lng = h_lat + j_lat, h_lng + j_lng
-            
-            # 計算歐幾里得距離 (極小範圍內可用)
-            dist = ((final_lat - click_lat)**2 + (final_lng - click_lng)**2)**0.5
-            if dist < 0.00005: # 非常接近才算
-                matched_row = rows[0]
-                break
-        
-        if matched_row is not None:
-            curr_id = str(matched_row.get('ID', matched_row.get('物件ID', '0')))
-            
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("🎯 當前選取物件")
-            st.sidebar.write(f"**{matched_row.get('案件名稱', '未知物件')}**")
-            
-            target_url = matched_row.get('網頁連結', '')
-            if target_url:
-                with st.sidebar:
-                    # 只有當點擊的是不同物件時，才顯示載入動畫並紀錄
-                    if st.session_state.get('last_clicked_id') != curr_id:
-                        with st.spinner("正在偵測連結狀態..."):
-                            status = check_link_health(target_url)
-                            device_info = get_device_name()
-                            log_to_gsheet(device_info, target_url, status)
-                            st.session_state['last_clicked_id'] = curr_id
-                            st.session_state[f"status_{curr_id}"] = status
-                    
-                    # 顯示快取好的狀態
-                    status = st.session_state.get(f"status_{curr_id}", "T")
-                    if status == "T":
-                        st.success("✅ 連結有效")
-                    else:
-                        st.error("❌ 連結可能已失效或異常")
-                    
-                    st.link_button("👉 前往同行網頁", target_url, use_container_width=True)
+    # --- 渲染地圖 (回歸順暢模式：不監聽點擊，避免重新整理) ---
+    st_folium(m, width="stretch", height=700, key="image_map", returned_objects=[])
 
     end_time = time.time()
     st.markdown(f"""
