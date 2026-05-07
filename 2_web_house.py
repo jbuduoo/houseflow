@@ -257,19 +257,36 @@ def parse_agent_info(json_str):
         html = '<div class="agent-pill-container">'
         for item in data:
             name = item.get("name", "未知")
-            urls = item.get("urls", [])
-            if not urls: continue
+            listings = item.get("listings", [])
+            if not listings: continue
             
-            if len(urls) == 1:
-                # 單筆模式：只顯示名稱，整個標籤都是連結
-                html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
+            # 產生下拉內容的 HTML
+            links_html = ""
+            for l_idx, l in enumerate(listings):
+                l_title = l.get("title", f"連結 {l_idx+1}")
+                l_price = l.get("price", "")
+                l_time = l.get("time", "")
+                l_url = l.get("url", "#")
+                
+                price_tag = f'<span style="color:#d32f2f; font-weight:bold; margin-left:5px;">{l_price}</span>' if l_price else ""
+                time_tag = f'<span style="color:#666; font-size:10px; border:1px solid #ddd; padding:0 2px; margin-left:5px; border-radius:2px;">{l_time}</span>' if l_time else ""
+                
+                links_html += f'''
+                <div style="border-bottom:1px solid #eee; padding:4px 0; line-height:1.4;">
+                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:none; font-weight:bold;">🔗 {l_title}</a>
+                    <div style="font-size:11px; margin-top:2px;">{price_tag} {time_tag}</div>
+                </div>
+                '''
+
+            if len(listings) == 1:
+                # 單筆模式：整個標籤都是連結
+                html += f'<a href="{listings[0].get("url", "#")}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
             else:
                 # 多筆模式：點擊展開下拉選單 (格式: 平台(筆數))
-                links_html = "".join([f'<a href="{url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:underline; display:block; padding:1px 0;">🔗 連結 {i+1}</a>' for i, url in enumerate(urls)])
                 html += f'''
-                <details style="display: inline-block; vertical-align: top;">
+                <details name="agent_pills" style="display: inline-block; vertical-align: top;">
                     <summary class="agent-pill" style="cursor: pointer;">
-                        {name}({len(urls)})
+                        {name}({len(listings)})
                     </summary>
                     <div class="agent-dropdown-content">
                         {links_html}
@@ -497,11 +514,26 @@ if True:
             # --- 模擬測試資料 (僅供預覽，若欄位不存在或為空時觸發) ---
             other_agents_raw = row.get('其他同行資訊', '')
             # 隨機幫前幾個物件塞點假資料
-            if not other_agents_raw and i == 0 and random.random() > 0.5:
+            if not other_agents_raw and i == 0:
                 mock_data = [
-                    {"name": "591", "urls": ["#1", "#2", "#3"]},
-                    {"name": "台屋", "urls": ["#A"]},
-                    {"name": "住商", "urls": ["#X", "#Y"]}
+                    {
+                        "name": "591", 
+                        "listings": [
+                            {"title": "永和商辦/馬上收租", "price": "1488萬", "time": "4小時前", "url": "#1"},
+                            {"title": "永和美業金店面", "price": "1488萬", "time": "1天前", "url": "#2"}
+                        ]
+                    },
+                    {
+                        "name": "台屋", 
+                        "listings": [{"title": "四號公園超值公寓", "price": "1450萬", "time": "2天前", "url": "#A"}]
+                    },
+                    {
+                        "name": "住商", 
+                        "listings": [
+                            {"title": "保健路店辦", "price": "1500萬", "time": "剛剛", "url": "#X"},
+                            {"title": "宜安路三房", "price": "1420萬", "time": "3天前", "url": "#Y"}
+                        ]
+                    }
                 ]
                 import json
                 other_agents_raw = json.dumps(mock_data, ensure_ascii=False)
