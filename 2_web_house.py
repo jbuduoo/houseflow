@@ -264,12 +264,12 @@ def parse_agent_info(json_str):
                 # 單筆模式：只顯示名稱，整個標籤都是連結
                 html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
             else:
-                # 多筆模式：點擊展開下拉選單
+                # 多筆模式：點擊展開下拉選單 (格式: 平台(筆數))
                 links_html = "".join([f'<a href="{url}" target="_blank" style="color:#1a73e8; font-size:13px; text-decoration:underline; display:block; padding:2px 0;">🔗 連結 {i+1}</a>' for i, url in enumerate(urls)])
                 html += f'''
                 <details style="display: inline-block; vertical-align: top;">
                     <summary class="agent-pill" style="cursor: pointer;">
-                        {name} ({len(urls)} 筆) ▽
+                        {name}({len(urls)})
                     </summary>
                     <div class="agent-dropdown-content">
                         {links_html}
@@ -573,7 +573,7 @@ if True:
         '''
         folium.Marker(
             location=[final_lat, final_lng],
-            popup=folium.Popup(combined_popup_html, max_width=320),
+            popup=folium.Popup(combined_popup_html, max_width=400),
             icon=folium.DivIcon(html=marker_html, icon_anchor=(19, 46))
         ).add_to(marker_group)
 
