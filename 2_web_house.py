@@ -120,27 +120,27 @@ st.markdown("""
         border: 1px solid #d1d5db;
         border-radius: 4px;
         padding: 5px 10px;
-        margin-top: 4px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 0px;
         position: absolute;
+        top: 26px; /* 固定在標籤列下方 */
         left: 0;
         right: 0;
         z-index: 1000;
         width: 100%;
         box-sizing: border-box;
     }
-    /* 讓容器變成定位基準 */
+    /* 讓容器變成定位基準，並確保標籤並排 */
     .agent-pill-container {
         position: relative;
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
-        margin-bottom: 8px;
-        min-height: 25px; /* 防止內容絕對定位後容器塌陷 */
+        margin-bottom: 12px;
+        padding-bottom: 2px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -284,15 +284,14 @@ def parse_agent_info(json_str):
                 l_time = l.get("time", "")
                 l_url = l.get("url", "#")
                 
-                price_tag = f'<span style="color:#d32f2f; font-weight:bold; margin-left:5px;">{l_price}</span>' if l_price else ""
-                time_tag = f'<span style="color:#666; font-size:10px; border:1px solid #ddd; padding:0 2px; margin-left:5px; border-radius:2px;">{l_time}</span>' if l_time else ""
+                price_tag = f'<span style="color:#d32f2f; font-weight:bold; font-size:10px;">{l_price}</span>' if l_price else ""
+                time_tag = f'<span style="color:#666; font-size:9px; border:1px solid #ddd; padding:0 2px; border-radius:2px; white-space:nowrap;">{l_time}</span>' if l_time else ""
                 
                 links_html += f'''
-                <div style="border-bottom:1px solid #eee; padding:4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;">
-                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:none; font-weight:bold; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">🔗 {l_title}</a>
-                    <div style="flex-shrink: 0; margin-left: auto; display: flex; align-items: center;">
-                        {price_tag} {time_tag}
-                    </div>
+                <div style="border-bottom:1px solid #eee; padding:3px 0; display: grid; grid-template-columns: 1fr 65px 70px; align-items: center; gap: 5px;">
+                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:11px; text-decoration:none; font-weight:bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🔗 {l_title}</a>
+                    <div style="text-align: right;">{price_tag}</div>
+                    <div style="text-align: right;">{time_tag}</div>
                 </div>
                 '''
 
