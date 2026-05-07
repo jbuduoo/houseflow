@@ -77,6 +77,35 @@ st.markdown("""
         animation: marker-flash 0.5s ease-in-out 3;
         z-index: 9999 !important;
     }
+    /* 同行標籤樣式 */
+    .agent-pill-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        padding-top: 6px;
+        border-top: 1px dashed #eee;
+    }
+    .agent-pill {
+        background: #f0f2f6;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 12px;
+        color: #31333f;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .agent-link {
+        color: #1a73e8 !important;
+        font-weight: bold;
+        text-decoration: underline !important;
+    }
+    .agent-link:hover {
+        color: #d32f2f !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -195,6 +224,33 @@ def get_device_name():
     return f"{device}-{st.session_state['device_id']}"
 
 from folium.plugins import MarkerCluster
+
+# --- 1.5 輔助工具：解析同行 JSON ---
+def parse_agent_info(json_str):
+    if not json_str or str(json_str).strip() == "":
+        return ""
+    try:
+        import json
+        data = json.loads(json_str)
+        if not isinstance(data, list): return ""
+        
+        html = '<div class="agent-pill-container">'
+        for item in data:
+            name = item.get("name", "未知")
+            urls = item.get("urls", [])
+            if not urls: continue
+            
+            if len(urls) == 1:
+                # 單筆模式：整個標籤都是連結
+                html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name} (1)</a>'
+            else:
+                # 多筆模式：名字是文字，後面是數字連結
+                links = " ".join([f'<a href="{url}" target="_blank" class="agent-link">{i+1}</a>' for i, url in enumerate(urls)])
+                html += f'<div class="agent-pill">{name} ({len(urls)}): {links}</div>'
+        html += '</div>'
+        return html
+    except Exception as e:
+        return ""
 
 # --- 2. 主程式流程 ---
 df_raw = load_data_from_gsheet()
@@ -409,18 +465,37 @@ if True:
                 </div>
             """
             
+            # --- 模擬測試資料 (僅供預覽，若欄位不存在或為空時觸發) ---
+            other_agents_raw = row.get('其他同行資訊', '')
+            # 隨機幫前幾個物件塞點假資料
+            if not other_agents_raw and i == 0 and random.random() > 0.5:
+                mock_data = [
+                    {"name": "591", "urls": ["#1", "#2", "#3"]},
+                    {"name": "台屋", "urls": ["#A"]},
+                    {"name": "住商", "urls": ["#X", "#Y"]}
+                ]
+                import json
+                other_agents_raw = json.dumps(mock_data, ensure_ascii=False)
+            
+            agent_pills_html = parse_agent_info(other_agents_raw)
+            
             res_addr_html = f"👤 戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
 
             # --- 單筆物件 Popup HTML ---
             item_html = f"""
                 {img_tag}
-                <span style='font-size:18px; font-weight:bold; color:#111; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']}</span>
+                <a href='{web_link}' target='_blank' style='text-decoration:none;'>
+                    <span style='font-size:18px; font-weight:bold; color:#1a73e8; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']} 🔗</span>
+                </a>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
                     📍 地址：{display_text}<br>
+                    {agent_pills_html}
                     🏠 房型：{layout_display}<br>
                     💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
-                {links_block}
+                <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
+                    <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#d32f2f; text-decoration:none;'>📑 謄本連結</a>
+                </div>
             """
             
             if i == 0:
