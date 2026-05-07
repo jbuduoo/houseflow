@@ -78,50 +78,53 @@ st.markdown("""
         z-index: 9999 !important;
     }
     /* 同行標籤樣式 */
-    .agent-tabs {
-        position: relative;
+    /* 直式列表樣式 */
+    .agent-list-container {
         margin-top: 10px;
-    }
-    .pill-row {
+        border-top: 1px solid #eee;
+        padding-top: 8px;
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 5px;
+        flex-direction: column;
+        gap: 4px;
     }
-    .tab-content {
-        display: none; /* 預設全部隱藏 */
-        background: #ffffff;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        padding: 5px 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        margin-top: 5px;
-    }
-    /* 當對應的單選框被選中時，顯示內容 */
-    .tab-input:checked + .tab-content-trigger + .tab-content {
-        display: block !important;
-    }
-    /* 讓單選框隱藏 */
-    .tab-input {
-        display: none;
-    }
-    .agent-pill {
-        background: #f0f2f6;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        padding: 1px 6px;
-        font-size: 11px;
-        color: #31333f;
-        cursor: pointer;
-        display: inline-flex;
+    .agent-row {
+        display: grid;
+        grid-template-columns: 42px 1fr 65px 60px; /* 固定四欄寬度 */
         align-items: center;
-        white-space: nowrap;
+        gap: 6px;
+        padding: 4px 0;
+        border-bottom: 1px solid #f9f9f9;
     }
-    /* 選中時的標籤樣式 */
-    .tab-input:checked + .tab-content-trigger .agent-pill {
-        background: #1a73e8;
-        color: white;
-        border-color: #1a73e8;
+    .agent-label {
+        background: #f0f2f6;
+        color: #555;
+        font-size: 10px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        text-align: center;
+        white-space: nowrap;
+        font-weight: bold;
+    }
+    .agent-list-title {
+        font-size: 11px;
+        color: #1a73e8;
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis; /* 自動切字 ... */
+        white-space: nowrap;
+        font-weight: 500;
+    }
+    .agent-list-price {
+        font-size: 11px;
+        color: #d32f2f;
+        font-weight: bold;
+        text-align: right;
+    }
+    .agent-list-time {
+        font-size: 9px;
+        color: #888;
+        text-align: right;
+        white-space: nowrap;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -244,53 +247,33 @@ from folium.plugins import MarkerCluster
 
 # --- 1.5 輔助工具：解析同行 JSON ---
 def parse_agent_info(json_str, row_idx):
+    if not json_str or str(json_str).strip() == "": return ""
     try:
         import json
         data = json.loads(json_str)
-        if not data: return ""
+        if not data or not isinstance(data, list): return ""
         
-        pills_html = '<div class="agent-tabs"><div class="pill-row">'
-        contents_html = ''
-        
-        for a_idx, item in enumerate(data):
+        list_html = '<div class="agent-list-container">'
+        for item in data:
             name = item.get("name", "未知")
             listings = item.get("listings", [])
-            if not listings: continue
-            
-            tab_id = f"tab_{row_idx}_{a_idx}"
-            summary_text = name if len(listings) == 1 else f"{name}({len(listings)})"
-            
-            
-            # 2. 產生對應的內容區塊
-            links_html = ""
-            for l_idx, l in enumerate(listings):
-                l_title = l.get("title", f"連結 {l_idx+1}")
+            for l in listings:
+                l_title = l.get("title", "物件網頁")
                 l_price = l.get("price", "")
                 l_time = l.get("time", "")
                 l_url = l.get("url", "#")
                 
-                price_tag = f'<span style="color:#d32f2f; font-weight:bold; font-size:10px;">{l_price}</span>' if l_price else ""
-                time_tag = f'<span style="color:#666; font-size:9px; border:1px solid #ddd; padding:0 2px; border-radius:2px; white-space:nowrap;">{l_time}</span>' if l_time else ""
-                
-                links_html += f'''
-                <div style="border-bottom:1px solid #eee; padding:3px 0; display: grid; grid-template-columns: 1fr 65px 70px; align-items: center; gap: 5px;">
-                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:11px; text-decoration:none; font-weight:bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🔗 {l_title}</a>
-                    <div style="text-align: right;">{price_tag}</div>
-                    <div style="text-align: right;">{time_tag}</div>
+                list_html += f'''
+                <div class="agent-row">
+                    <div class="agent-label">{name}</div>
+                    <a href="{l_url}" target="_blank" class="agent-list-title" title="{l_title}">🔗 {l_title}</a>
+                    <div class="agent-list-price">{l_price}</div>
+                    <div class="agent-list-time">{l_time}</div>
                 </div>
                 '''
-            # 拼接 Radio + Label + Content
-            pills_html += f'''
-            <input type="radio" name="agent_group_{row_idx}" id="{tab_id}" class="tab-input">
-            <label for="{tab_id}" class="tab-content-trigger">
-                <span class="agent-pill">{summary_text}</span>
-            </label>
-            <div class="tab-content">{links_html}</div>
-            '''
-            
-        pills_html += '</div></div>'
-        return pills_html
-    except Exception as e:
+        list_html += '</div>'
+        return list_html
+    except:
         return ""
 
 # --- 2. 主程式流程 ---
