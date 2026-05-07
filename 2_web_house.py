@@ -120,27 +120,36 @@ st.markdown("""
         border: 1px solid #d1d5db;
         border-radius: 4px;
         padding: 5px 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2); /* 增加陰影深度 */
         display: flex;
         flex-direction: column;
         gap: 0px;
         position: absolute;
-        top: 26px; /* 固定在標籤列下方 */
+        top: 100%; /* 絕對在容器的正下方 */
         left: 0;
         right: 0;
-        z-index: 1000;
+        z-index: 9999; /* 確保在最上層 */
         width: 100%;
         box-sizing: border-box;
     }
-    /* 讓容器變成定位基準，並確保標籤並排 */
+    /* 確保標籤列容器不會被撐開 */
     .agent-pill-container {
         position: relative;
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         padding-bottom: 2px;
+        align-items: flex-start;
+    }
+    /* 強制 details 展開時不佔用空間 */
+    details[open] .agent-dropdown-content {
+        display: flex !important;
+    }
+    details {
+        display: inline-block !important;
+        height: auto;
     }
     </style>
 """, unsafe_allow_html=True)
