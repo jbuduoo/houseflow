@@ -120,19 +120,26 @@ st.markdown("""
         border: 1px solid #d1d5db;
         border-radius: 4px;
         padding: 5px 10px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2); /* 增加陰影深度 */
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
         display: flex;
         flex-direction: column;
         gap: 0px;
         position: absolute;
-        top: 100%; /* 絕對在容器的正下方 */
+        top: 24px; /* 剛好在標籤下方 */
         left: 0;
         right: 0;
-        z-index: 9999; /* 確保在最上層 */
+        z-index: 9999;
         width: 100%;
         box-sizing: border-box;
     }
-    /* 確保標籤列容器不會被撐開 */
+    /* 核心修正：強制 details 不會因為展開而變高 */
+    details {
+        display: inline-block !important;
+        vertical-align: top;
+        height: 22px; /* 強制固定高度 */
+        overflow: visible !important;
+        position: static;
+    }
     .agent-pill-container {
         position: relative;
         display: flex;
@@ -140,16 +147,8 @@ st.markdown("""
         gap: 6px;
         margin-top: 8px;
         margin-bottom: 8px;
-        padding-bottom: 2px;
+        min-height: 22px;
         align-items: flex-start;
-    }
-    /* 強制 details 展開時不佔用空間 */
-    details[open] .agent-dropdown-content {
-        display: flex !important;
-    }
-    details {
-        display: inline-block !important;
-        height: auto;
     }
     </style>
 """, unsafe_allow_html=True)
