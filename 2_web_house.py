@@ -125,20 +125,22 @@ st.markdown("""
         flex-direction: column;
         gap: 0px;
         position: absolute;
-        top: 24px; /* 剛好在標籤下方 */
+        top: 28px; /* 稍微下移，避開標籤 */
         left: 0;
         right: 0;
         z-index: 9999;
         width: 100%;
         box-sizing: border-box;
     }
-    /* 核心修正：強制 details 不會因為展開而變高 */
+    /* 強制標籤並排，且展開時不變寬、不變高 */
     details {
         display: inline-block !important;
-        vertical-align: top;
-        height: 22px; /* 強制固定高度 */
+        vertical-align: top !important;
+        height: 24px !important;
+        width: auto !important;
         overflow: visible !important;
-        position: static;
+        position: static !important;
+        white-space: nowrap !important;
     }
     .agent-pill-container {
         position: relative;
@@ -147,8 +149,8 @@ st.markdown("""
         gap: 6px;
         margin-top: 8px;
         margin-bottom: 8px;
-        min-height: 22px;
         align-items: flex-start;
+        width: 100%;
     }
     </style>
 """, unsafe_allow_html=True)
