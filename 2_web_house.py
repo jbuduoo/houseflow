@@ -241,12 +241,12 @@ def parse_agent_info(json_str):
             if not urls: continue
             
             if len(urls) == 1:
-                # 單筆模式：整個標籤都是連結
-                html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name} (1)</a>'
+                # 單筆模式：只顯示名稱，整個標籤都是連結
+                html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
             else:
-                # 多筆模式：名字是文字，後面是數字連結
+                # 多筆模式：名稱: 數字連結
                 links = " ".join([f'<a href="{url}" target="_blank" class="agent-link">{i+1}</a>' for i, url in enumerate(urls)])
-                html += f'<div class="agent-pill">{name} ({len(urls)}): {links}</div>'
+                html += f'<div class="agent-pill">{name}: {links}</div>'
         html += '</div>'
         return html
     except Exception as e:
@@ -489,10 +489,10 @@ if True:
                 </a>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
                     📍 地址：{display_text}<br>
-                    {agent_pills_html}
                     🏠 房型：{layout_display}<br>
                     💰 <strong style='font-size:16px; color:#d32f2f;'>{row.get('售價(萬)','')} 萬</strong> | {row.get('總坪數','')}坪 | {row.get('樓層','')}/{row.get('總樓層','')}F
                 </div>
+                {agent_pills_html}
                 <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
                     <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#d32f2f; text-decoration:none;'>📑 謄本連結</a>
                 </div>
