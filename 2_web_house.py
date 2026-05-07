@@ -121,10 +121,26 @@ st.markdown("""
         border-radius: 4px;
         padding: 5px 10px;
         margin-top: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* 讓容器變成定位基準 */
+    .agent-pill-container {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        min-height: 25px; /* 防止內容絕對定位後容器塌陷 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -272,27 +288,28 @@ def parse_agent_info(json_str):
                 time_tag = f'<span style="color:#666; font-size:10px; border:1px solid #ddd; padding:0 2px; margin-left:5px; border-radius:2px;">{l_time}</span>' if l_time else ""
                 
                 links_html += f'''
-                <div style="border-bottom:1px solid #eee; padding:4px 0; line-height:1.4;">
-                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:none; font-weight:bold;">🔗 {l_title}</a>
-                    <div style="font-size:11px; margin-top:2px;">{price_tag} {time_tag}</div>
+                <div style="border-bottom:1px solid #eee; padding:4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;">
+                    <a href="{l_url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:none; font-weight:bold; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">🔗 {l_title}</a>
+                    <div style="flex-shrink: 0; margin-left: auto; display: flex; align-items: center;">
+                        {price_tag} {time_tag}
+                    </div>
                 </div>
                 '''
 
-            if len(listings) == 1:
-                # 單筆模式：整個標籤都是連結
-                html += f'<a href="{listings[0].get("url", "#")}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
-            else:
-                # 多筆模式：點擊展開下拉選單 (格式: 平台(筆數))
-                html += f'''
-                <details name="agent_pills" style="display: inline-block; vertical-align: top;">
-                    <summary class="agent-pill" style="cursor: pointer;">
-                        {name}({len(listings)})
-                    </summary>
-                    <div class="agent-dropdown-content">
-                        {links_html}
-                    </div>
-                </details>
-                '''
+            # 決定 Summary 文字：單筆只顯示名稱，多筆顯示名稱(數量)
+            summary_text = name if len(listings) == 1 else f"{name}({len(listings)})"
+            
+            # 統一使用下拉選單模式
+            html += f'''
+            <details name="agent_pills" style="display: inline-block; vertical-align: top;">
+                <summary class="agent-pill" style="cursor: pointer;">
+                    {summary_text}
+                </summary>
+                <div class="agent-dropdown-content">
+                    {links_html}
+                </div>
+            </details>
+            '''
         html += '</div>'
         return html
     except Exception as e:
