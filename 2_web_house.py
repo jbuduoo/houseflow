@@ -125,32 +125,42 @@ st.markdown("""
         flex-direction: column;
         gap: 0px;
         position: absolute;
-        top: 28px; /* 稍微下移，避開標籤 */
+        top: 30px; /* 固定在浮動標籤下方 */
         left: 0;
         right: 0;
         z-index: 9999;
         width: 100%;
         box-sizing: border-box;
     }
-    /* 強制標籤並排，且展開時不變寬、不變高 */
+    /* 改用浮動排版，強制並排 */
     details {
-        display: inline-block !important;
-        vertical-align: top !important;
-        height: 24px !important;
+        float: left !important;
+        display: block !important;
+        margin-right: 6px !important;
+        margin-bottom: 6px !important;
         width: auto !important;
+        height: auto !important;
         overflow: visible !important;
-        position: static !important;
+    }
+    summary.agent-pill {
+        display: inline-flex !important;
+        align-items: center;
         white-space: nowrap !important;
+        width: auto !important;
     }
     .agent-pill-container {
         position: relative;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+        display: block !important; /* 改回 block 以配合浮動 */
+        width: 100%;
+        min-height: 30px;
         margin-top: 8px;
         margin-bottom: 8px;
-        align-items: flex-start;
-        width: 100%;
+    }
+    /* 清除浮動，確保下方內容不被影響 */
+    .agent-pill-container::after {
+        content: "";
+        display: table;
+        clear: both;
     }
     </style>
 """, unsafe_allow_html=True)
