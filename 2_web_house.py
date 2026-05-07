@@ -78,14 +78,32 @@ st.markdown("""
         z-index: 9999 !important;
     }
     /* 同行標籤樣式 */
-    .agent-pill-container {
+    .agent-tabs {
+        position: relative;
+        margin-top: 10px;
+    }
+    .pill-row {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        margin-top: 8px;
-        margin-bottom: 8px;
-        padding-top: 6px;
-        border-top: 1px dashed #eee;
+        margin-bottom: 5px;
+    }
+    .tab-content {
+        display: none; /* 預設全部隱藏 */
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 5px 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        margin-top: 5px;
+    }
+    /* 當對應的單選框被選中時，顯示內容 */
+    .tab-input:checked + .tab-content-trigger + .tab-content {
+        display: block !important;
+    }
+    /* 讓單選框隱藏 */
+    .tab-input {
+        display: none;
     }
     .agent-pill {
         background: #f0f2f6;
@@ -94,71 +112,16 @@ st.markdown("""
         padding: 1px 6px;
         font-size: 11px;
         color: #31333f;
-        display: flex;
-        align-items: center;
-        gap: 3px;
-    }
-    .agent-link {
-        color: #1a73e8 !important;
-        font-weight: bold;
-        text-decoration: underline !important;
-    }
-    .agent-link:hover {
-        color: #d32f2f !important;
-    }
-    /* 隱藏 details 預設三角形 */
-    summary.agent-pill::-webkit-details-marker {
-        display: none;
-    }
-    summary.agent-pill {
-        display: block;
-        outline: none;
-        list-style: none;
-    }
-    .agent-dropdown-content {
-        background: #ffffff;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        padding: 5px 10px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        display: none; /* 預設隱藏 */
-        flex-direction: column;
-        gap: 0px;
-        position: absolute;
-        top: 28px;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        width: 100%;
-        box-sizing: border-box;
-    }
-    /* 核心黑科技：讓 details 標籤不參與排版，直接讓內部元素排版 */
-    details {
-        display: contents !important;
-    }
-    /* 當 details 打開時，顯示內部的 dropdown */
-    details[open] .agent-dropdown-content {
-        display: flex !important;
-    }
-    .agent-pill-container {
-        position: relative;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-        margin-bottom: 8px;
-        min-height: 25px;
-    }
-    summary.agent-pill {
-        display: flex !important;
-        align-items: center;
-        white-space: nowrap !important;
         cursor: pointer;
-        list-style: none;
-        outline: none;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
     }
-    summary::-webkit-details-marker {
-        display: none;
+    /* 選中時的標籤樣式 */
+    .tab-input:checked + .tab-content-trigger .agent-pill {
+        background: #1a73e8;
+        color: white;
+        border-color: #1a73e8;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -280,21 +243,32 @@ def get_device_name():
 from folium.plugins import MarkerCluster
 
 # --- 1.5 輔助工具：解析同行 JSON ---
-def parse_agent_info(json_str):
-    if not json_str or str(json_str).strip() == "":
-        return ""
+def parse_agent_info(json_str, row_idx):
     try:
         import json
         data = json.loads(json_str)
-        if not isinstance(data, list): return ""
+        if not data: return ""
         
-        html = '<div class="agent-pill-container">'
-        for item in data:
+        pills_html = '<div class="pill-row">'
+        contents_html = ''
+        
+        for a_idx, item in enumerate(data):
             name = item.get("name", "未知")
             listings = item.get("listings", [])
             if not listings: continue
             
-            # 產生下拉內容的 HTML
+            tab_id = f"tab_{row_idx}_{a_idx}"
+            summary_text = name if len(listings) == 1 else f"{name}({len(listings)})"
+            
+            # 1. 產生單選按鈕與標籤 (隱藏 input + label)
+            pills_html += f'''
+            <input type="radio" name="agent_group_{row_idx}" id="{tab_id}" class="tab-input">
+            <label for="{tab_id}" class="tab-content-trigger">
+                <span class="agent-pill">{summary_text}</span>
+            </label>
+            '''
+            
+            # 2. 產生對應的內容區塊
             links_html = ""
             for l_idx, l in enumerate(listings):
                 l_title = l.get("title", f"連結 {l_idx+1}")
@@ -312,8 +286,6 @@ def parse_agent_info(json_str):
                     <div style="text-align: right;">{time_tag}</div>
                 </div>
                 '''
-
-            # 決定 Summary 文字：單筆只顯示名稱，多筆顯示名稱(數量)
             summary_text = name if len(listings) == 1 else f"{name}({len(listings)})"
             
             # 統一使用下拉選單模式
@@ -572,7 +544,7 @@ if True:
                 import json
                 other_agents_raw = json.dumps(mock_data, ensure_ascii=False)
             
-            agent_pills_html = parse_agent_info(other_agents_raw)
+            agent_pills_html = parse_agent_info(other_agents_raw, i)
             
             res_addr_html = f"👤 戶籍：{display_res_addr}<br>\n                " if display_res_addr != "待查閱" else ""
 
