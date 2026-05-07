@@ -253,9 +253,7 @@ def parse_agent_info(json_str, row_idx):
         data = json.loads(json_str)
         if not data or not isinstance(data, list): return ""
         
-        # 容器樣式：垂直排列每一行
-        list_html = '<div style="margin-top:10px; border-top:1px solid #eee; padding-top:8px; display:flex; flex-direction:column; gap:4px;">'
-        
+        list_html = '<div class="agent-list-container">'
         for item in data:
             name = item.get("name", "未知")
             listings = item.get("listings", [])
@@ -265,23 +263,14 @@ def parse_agent_info(json_str, row_idx):
                 l_time = l.get("time", "")
                 l_url = l.get("url", "#")
                 
-                # 每一行：使用 flex 布局強制並排
                 list_html += f'''
-                <div style="display:flex; align-items:center; gap:6px; padding:2px 0; border-bottom:1px solid #f9f9f9; width:100%; box-sizing:border-box;">
-                    <!-- 仲介標籤 -->
-                    <div style="background:#f0f2f6; color:#555; font-size:10px; padding:1px 4px; border-radius:3px; text-align:center; min-width:38px; font-weight:bold; white-space:nowrap;">{name}</div>
-                    
-                    <!-- 標題：自動截斷 -->
-                    <a href="{l_url}" target="_blank" title="{l_title}" style="flex:1; font-size:11px; color:#1a73e8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">🔗 {l_title}</a>
-                    
-                    <!-- 價格 -->
-                    <div style="font-size:11px; color:#d32f2f; font-weight:bold; text-align:right; min-width:60px; white-space:nowrap;">{l_price}</div>
-                    
-                    <!-- 時間 -->
-                    <div style="font-size:9px; color:#888; text-align:right; min-width:55px; white-space:nowrap;">{l_time}</div>
+                <div class="agent-row">
+                    <div class="agent-label">{name}</div>
+                    <a href="{l_url}" target="_blank" class="agent-list-title" title="{l_title}">🔗 {l_title}</a>
+                    <div class="agent-list-price">{l_price}</div>
+                    <div class="agent-list-time">{l_time}</div>
                 </div>
                 '''
-            
         list_html += '</div>'
         return list_html
     except:
@@ -500,32 +489,8 @@ if True:
                 </div>
             """
             
-            # --- 模擬測試資料 (僅供預覽，若欄位不存在或為空時觸發) ---
-            other_agents_raw = row.get('其他同行資訊', '')
-            # 隨機幫前幾個物件塞點假資料
-            if not other_agents_raw and i == 0:
-                mock_data = [
-                    {
-                        "name": "591", 
-                        "listings": [
-                            {"title": "永和商辦/馬上收租", "price": "1488萬", "time": "4小時前", "url": "#1"},
-                            {"title": "永和美業金店面", "price": "1488萬", "time": "1天前", "url": "#2"}
-                        ]
-                    },
-                    {
-                        "name": "台屋", 
-                        "listings": [{"title": "四號公園超值公寓", "price": "1450萬", "time": "2天前", "url": "#A"}]
-                    },
-                    {
-                        "name": "住商", 
-                        "listings": [
-                            {"title": "保健路店辦", "price": "1500萬", "time": "剛剛", "url": "#X"},
-                            {"title": "宜安路三房", "price": "1420萬", "time": "3天前", "url": "#Y"}
-                        ]
-                    }
-                ]
-                import json
-                other_agents_raw = json.dumps(mock_data, ensure_ascii=False)
+            # --- 同行資訊解析 ---
+            other_agents_raw = row.get('同行資訊 JSON 格式', '')
             
             agent_pills_html = parse_agent_info(other_agents_raw, i)
             
