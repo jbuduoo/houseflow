@@ -91,12 +91,12 @@ st.markdown("""
         background: #f0f2f6;
         border: 1px solid #d1d5db;
         border-radius: 4px;
-        padding: 2px 8px;
-        font-size: 12px;
+        padding: 1px 6px;
+        font-size: 11px;
         color: #31333f;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
     }
     .agent-link {
         color: #1a73e8 !important;
@@ -265,7 +265,7 @@ def parse_agent_info(json_str):
                 html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
             else:
                 # 多筆模式：點擊展開下拉選單 (格式: 平台(筆數))
-                links_html = "".join([f'<a href="{url}" target="_blank" style="color:#1a73e8; font-size:13px; text-decoration:underline; display:block; padding:2px 0;">🔗 連結 {i+1}</a>' for i, url in enumerate(urls)])
+                links_html = "".join([f'<a href="{url}" target="_blank" style="color:#1a73e8; font-size:12px; text-decoration:underline; display:block; padding:1px 0;">🔗 連結 {i+1}</a>' for i, url in enumerate(urls)])
                 html += f'''
                 <details style="display: inline-block; vertical-align: top;">
                     <summary class="agent-pill" style="cursor: pointer;">
