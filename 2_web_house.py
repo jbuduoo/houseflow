@@ -253,7 +253,8 @@ def parse_agent_info(json_str, row_idx):
         data = json.loads(json_str)
         if not data or not isinstance(data, list): return ""
         
-        list_html = '<div class="agent-list-container">'
+        # 容器樣式：垂直排列每一行
+        list_html = '<div style="margin-top:10px; border-top:1px solid #eee; padding-top:8px; display:flex; flex-direction:column; gap:4px;">'
         for item in data:
             name = item.get("name", "未知")
             listings = item.get("listings", [])
@@ -263,12 +264,13 @@ def parse_agent_info(json_str, row_idx):
                 l_time = l.get("time", "")
                 l_url = l.get("url", "#")
                 
+                # 每一行：使用 flex 布局強制並排
                 list_html += f'''
-                <div class="agent-row">
-                    <div class="agent-label">{name}</div>
-                    <a href="{l_url}" target="_blank" class="agent-list-title" title="{l_title}">🔗 {l_title}</a>
-                    <div class="agent-list-price">{l_price}</div>
-                    <div class="agent-list-time">{l_time}</div>
+                <div style="display:flex; align-items:center; gap:6px; padding:2px 0; border-bottom:1px solid #f9f9f9; width:100%; box-sizing:border-box;">
+                    <div style="background:#f0f2f6; color:#555; font-size:10px; padding:1px 4px; border-radius:3px; text-align:center; min-width:38px; font-weight:bold; white-space:nowrap;">{name}</div>
+                    <a href="{l_url}" target="_blank" title="{l_title}" style="flex:1; font-size:11px; color:#1a73e8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">🔗 {l_title}</a>
+                    <div style="font-size:11px; color:#d32f2f; font-weight:bold; text-align:right; min-width:60px; white-space:nowrap;">{l_price}</div>
+                    <div style="font-size:9px; color:#888; text-align:right; min-width:55px; white-space:nowrap;">{l_time}</div>
                 </div>
                 '''
         list_html += '</div>'
