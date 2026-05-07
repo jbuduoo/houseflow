@@ -121,46 +121,44 @@ st.markdown("""
         border-radius: 4px;
         padding: 5px 10px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        display: flex;
+        display: none; /* 預設隱藏 */
         flex-direction: column;
         gap: 0px;
         position: absolute;
-        top: 30px; /* 固定在浮動標籤下方 */
+        top: 28px;
         left: 0;
         right: 0;
         z-index: 9999;
         width: 100%;
         box-sizing: border-box;
     }
-    /* 改用浮動排版，強制並排 */
+    /* 核心黑科技：讓 details 標籤不參與排版，直接讓內部元素排版 */
     details {
-        float: left !important;
-        display: block !important;
-        margin-right: 6px !important;
-        margin-bottom: 6px !important;
-        width: auto !important;
-        height: auto !important;
-        overflow: visible !important;
+        display: contents !important;
     }
-    summary.agent-pill {
-        display: inline-flex !important;
-        align-items: center;
-        white-space: nowrap !important;
-        width: auto !important;
+    /* 當 details 打開時，顯示內部的 dropdown */
+    details[open] .agent-dropdown-content {
+        display: flex !important;
     }
     .agent-pill-container {
         position: relative;
-        display: block !important; /* 改回 block 以配合浮動 */
-        width: 100%;
-        min-height: 30px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
         margin-top: 8px;
         margin-bottom: 8px;
+        min-height: 25px;
     }
-    /* 清除浮動，確保下方內容不被影響 */
-    .agent-pill-container::after {
-        content: "";
-        display: table;
-        clear: both;
+    summary.agent-pill {
+        display: flex !important;
+        align-items: center;
+        white-space: nowrap !important;
+        cursor: pointer;
+        list-style: none;
+        outline: none;
+    }
+    summary::-webkit-details-marker {
+        display: none;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -320,8 +318,8 @@ def parse_agent_info(json_str):
             
             # 統一使用下拉選單模式
             html += f'''
-            <details name="agent_pills" style="display: inline-block; vertical-align: top;">
-                <summary class="agent-pill" style="cursor: pointer;">
+            <details name="agent_pills">
+                <summary class="agent-pill">
                     {summary_text}
                 </summary>
                 <div class="agent-dropdown-content">
