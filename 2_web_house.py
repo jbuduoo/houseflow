@@ -106,6 +106,26 @@ st.markdown("""
     .agent-link:hover {
         color: #d32f2f !important;
     }
+    /* 隱藏 details 預設三角形 */
+    summary.agent-pill::-webkit-details-marker {
+        display: none;
+    }
+    summary.agent-pill {
+        display: block;
+        outline: none;
+        list-style: none;
+    }
+    .agent-dropdown-content {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 5px 10px;
+        margin-top: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -244,9 +264,18 @@ def parse_agent_info(json_str):
                 # 單筆模式：只顯示名稱，整個標籤都是連結
                 html += f'<a href="{urls[0]}" target="_blank" class="agent-pill" style="text-decoration:none;">{name}</a>'
             else:
-                # 多筆模式：名稱: 數字連結
-                links = " ".join([f'<a href="{url}" target="_blank" class="agent-link">{i+1}</a>' for i, url in enumerate(urls)])
-                html += f'<div class="agent-pill">{name}: {links}</div>'
+                # 多筆模式：點擊展開下拉選單
+                links_html = "".join([f'<a href="{url}" target="_blank" style="color:#1a73e8; font-size:13px; text-decoration:underline; display:block; padding:2px 0;">🔗 刊登連結 {i+1}</a>' for i, url in enumerate(urls)])
+                html += f'''
+                <details style="width: 100%; margin-bottom: 4px;">
+                    <summary class="agent-pill" style="cursor: pointer; width: fit-content;">
+                        {name} ({len(urls)} 筆) ▽
+                    </summary>
+                    <div class="agent-dropdown-content">
+                        {links_html}
+                    </div>
+                </details>
+                '''
         html += '</div>'
         return html
     except Exception as e:
