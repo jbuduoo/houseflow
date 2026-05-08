@@ -16,17 +16,18 @@ def main():
     print("【住通自動化地產開發總管 - Master Pipeline v2】")
     print("★" * 60)
 
-    print("  [1] 🔍 採集物件 (1_house.py)")
-    print("  [2] 🗑️  去除重複 ID (2_deduplicate.py)")
-    print("  [3] 📍 地址補完 (3_address.py)")
-    print("  [4] 🏠 戶籍/座標擷取 (4_registry.py)")
-    print("  [5a] 🗺️  取得信義座標 (5a_sinyi.py)")
-    print("  [5b] 🗺️  取得永慶座標 (5b_yungching.py)")
-    print("  [5c] 🗺️  取得其他仲介座標 (5c_others.py)")
-    print("  [5d] 📍 ArcGIS 地址定位 (5d_arcgis.py)")
-    print("  [6] 📍 地址補完 (座標反查) (6_reverse_geocode.py)")
-    print("  [7] 🤖 AI 綜合研判 (7_smart_analysis.py)")
-    print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5a -> 5b -> 5c -> 5d -> 6 -> 7)")
+    print("  [1] [採集] 採集物件 (1_house.py)")
+    print("  [1b] [清洗] 清洗資料 (1b_cleaner.py - 移除 Emoji)")
+    print("  [2] [去重] 去除重複 ID (2_deduplicate.py)")
+    print("  [3] [補完] 地址補完 (3_address.py)")
+    print("  [4] [擷取] 戶籍/座標擷取 (4_registry.py)")
+    print("  [5a] [座標] 取得信義座標 (5a_sinyi.py)")
+    print("  [5b] [座標] 取得永慶座標 (5b_yungching.py)")
+    print("  [5c] [座標] 取得住商不動產，中信座標 (5c_others.py)")
+    print("  [5d] [定位] ArcGIS 地址定位 (5d_arcgis.py)")
+    print("  [6] [反查] 地址補完 (座標反查) (6_reverse_geocode.py)")
+    print("  [7] [研判] AI 綜合研判 (7_smart_analysis.py)")
+    print("  [0] [全部] 全部依序執行 (1 -> 1b -> 2 -> 3 -> 4 -> 5a -> 5b -> 5c -> 5d -> 6 -> 7)")
 
     try:
         user_input = input("\n請輸入功能編號 (可多選，例如 5a 5b): ").strip()
@@ -38,7 +39,7 @@ def main():
         raw_tasks = user_input.split()
         selected_tasks = []
         if "0" in raw_tasks:
-            selected_tasks = ["1", "2", "3", "4", "5a", "5b", "5c", "5d", "6", "7"]
+            selected_tasks = ["1", "1b", "2", "3", "4", "5a", "5b", "5c", "5d", "6", "7"]
         else:
             selected_tasks = raw_tasks
 
@@ -50,6 +51,11 @@ def main():
                 print("\n>>> [執行功能 1] 啟動地圖採集程式 (1_house.py)...")
                 house_module = import_script("core/1_house.py")
                 house_module.run_map_scraper()
+
+            elif task == "1b":
+                print("\n>>> [執行功能 1b] 啟動 Emoji 資料清洗 (1b_cleaner.py)...")
+                cleaner_module = import_script("core/1b_cleaner.py")
+                cleaner_module.run_emoji_cleaner()
 
             elif task == "2":
                 print("\n>>> [執行功能 2] 啟動去重整合程式 (2_deduplicate.py)...")
@@ -97,22 +103,22 @@ def main():
                 analysis_module.run_smart_analysis()
 
             else:
-                print(f"\n⚠️ 未知的功能編號 '{task}'，已跳過。")
+                print(f"\n[!] 未知的功能編號 '{task}'，已跳過。")
                 continue
             
             task_end = time.time()
-            print(f"✅ 功能 {task} 執行完畢，耗時: {task_end - task_start:.1f} 秒")
+            print(f"[OK] 功能 {task} 執行完畢，耗時: {task_end - task_start:.1f} 秒")
             time.sleep(1)
 
         total_end_time = time.time()
-        print("\n" + "★" * 60)
-        print(f"🎉 恭喜！選定任務全部執行完畢！總耗時: {total_end_time - total_start_time:.1f} 秒")
-        print("★" * 60)
+        print("\n" + "*" * 60)
+        print(f"  [DONE] 任務全部執行完畢！總耗時: {total_end_time - total_start_time:.1f} 秒")
+        print("*" * 60)
 
     except KeyboardInterrupt:
-        print("\n\n🛑 使用者中斷任務。")
+        print("\n\n[STOP] 使用者中斷任務。")
     except Exception as e:
-        print(f"\n\n❌ 執行過程中發生錯誤: {e}")
+        print(f"\n\n[ERROR] 執行過程中發生錯誤: {e}")
 
 if __name__ == "__main__":
     main()

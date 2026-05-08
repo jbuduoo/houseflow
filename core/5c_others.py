@@ -42,19 +42,25 @@ def get_generic_coordinates(url, source):
     return None, "No coordinates found in HTML"
 
 def run_others_task():
-    print("\n" + "="*60)
-    print("【其他仲介座標擷取工具 - 5c_others.py v1.0】")
-    print("="*60)
+    print("\n" + "="*60, flush=True)
+    print("【其他仲介座標擷取工具 - 5c_others.py v1.1】", flush=True)
+    print("="*60, flush=True)
 
     try:
+        print("[1/4] 正在初始化 Google Sheets 連線...", flush=True)
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive'])
         client = gspread.authorize(creds)
+        
+        print("[2/4] 正在開啟試算表並讀取所有資料 (請稍候)...", flush=True)
         wks = client.open_by_key(SHEET_KEY).sheet1
-        
         all_rows = wks.get_all_values()
-        if len(all_rows) <= 1: return
+        if len(all_rows) <= 1: 
+            print("! 試算表為空，任務取消。", flush=True)
+            return
         
-        # 索引：K(10, 網址), V(21, 來源), R(17, 物件緯度), S(18, 物件經度), Z(25, 來源標註)
+        print(f"[3/4] 讀取完成，共 {len(all_rows)} 行。正在篩選需要爬取的案件...", flush=True)
+        
+        # 索引：K(10,網址), V(21,來源), R(17,物件緯度), S(18,物件經度), Z(25,來源標註)
         idx_url = 10
         idx_broker = 21
         idx_lat = 17
@@ -67,40 +73,54 @@ def run_others_task():
             lat = r[idx_lat] if len(r) > idx_lat else ""
             url = r[idx_url] if len(r) > idx_url else ""
             
-            # 排除已處理過的信義與永慶，只抓「其餘」仲介 且 沒座標的
-            if broker and broker not in ["信義", "永慶"] and not lat and url:
+            # 再次縮小範圍：僅針對 [中信, 住商] 進行爬取
+            if broker and any(k in broker for k in ["中信", "住商"]) and not lat.strip() and url:
                 targets.append((i + 2, broker, url))
 
         if not targets:
-            print("目前沒有需要處理的其他仲介物件。")
+            print("目前沒有需要處理的其他仲介物件。", flush=True)
             return
 
-        print(f"預計掃描 {len(targets)} 筆其他仲介物件...")
+        print(f"[4/4] 篩選完成，預計掃描 {len(targets)} 筆其他仲介物件...", flush=True)
         
         success_count = 0
+        update_queue = []
+        
         for row_num, broker, url in targets:
-            print(f"  [掃描] 行號 {row_num} ({broker}): {url[:40]}...")
+            print(f"  [掃描] 行號 {row_num} ({broker}): {url[:40]}...", flush=True)
             
-            # 通用爬取通常不需要休息太久，但還是加一點緩衝
-            time.sleep(0.5)
+            time.sleep(0.5) # 通用爬取稍快一點
             
             coords, msg = get_generic_coordinates(url, broker)
             if coords:
                 lat_val, lng_val = coords.split(',')
-                wks.update_cell(row_num, idx_lat + 1, lat_val)
-                wks.update_cell(row_num, idx_lng + 1, lng_val)
-                wks.update_cell(row_num, idx_src + 1, f"{broker}爬取")
-                print(f"    ✅ 取得座標: {coords}")
+                # 加入隊列
+                update_queue.append(gspread.Cell(row=row_num, col=idx_lat + 1, value=lat_val))
+                update_queue.append(gspread.Cell(row=row_num, col=idx_lng + 1, value=lng_val))
+                update_queue.append(gspread.Cell(row=row_num, col=idx_src + 1, value=f"{broker}爬取"))
+                print(f"    [SUCCESS] 取得座標: {coords}", flush=True)
                 success_count += 1
             else:
-                # 紀錄失敗，方便 5d 辨識
-                wks.update_cell(row_num, idx_src + 1, f"爬取失敗({broker})")
-                print(f"    ⚠️  失敗: {msg}")
+                # 紀錄失敗
+                update_queue.append(gspread.Cell(row=row_num, col=idx_src + 1, value=f"爬取失敗({broker})"))
+                print(f"    [FAILED] {msg}", flush=True)
 
-        print(f"\n[任務結束] 成功從其他仲介原始碼補齊 {success_count} 筆座標。")
+            # 每累積 30 筆寫入一次
+            if len(update_queue) >= 90: # 30 筆 * 3 個儲存格
+                print(f"\n[系統] 正在將累積的 {len(update_queue)//3} 筆資料寫入雲端...", flush=True)
+                wks.update_cells(update_queue)
+                update_queue = []
+                time.sleep(1) # 寫入後小休，防 API 限制
+
+        # 寫入最後剩餘的資料
+        if update_queue:
+            print(f"\n[系統] 正在寫入最後 {len(update_queue)//3} 筆資料...", flush=True)
+            wks.update_cells(update_queue)
+        
+        print(f"\n[任務結束] 成功補齊 {success_count} 筆座標。", flush=True)
 
     except Exception as e:
-        print(f"❌ 錯誤: {e}")
+        print(f"ERROR: {e}", flush=True)
 
 if __name__ == "__main__":
     run_others_task()

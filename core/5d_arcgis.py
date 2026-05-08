@@ -81,24 +81,37 @@ def run_arcgis_task():
             print("目前沒有需要補救的座標。")
             return
 
-        print(f"預計處理 {len(rows_to_update)} 筆補救任務...")
+        print(f"預計處理 {len(rows_to_update)} 筆補救任務...", flush=True)
         
         success_count = 0
+        update_queue = []
+        
         for row_num, addr in rows_to_update:
             lat, lng = get_arcgis_coordinates(addr)
             if lat and lng:
-                wks.update_cell(row_num, idx_lat + 1, lat)
-                wks.update_cell(row_num, idx_lng + 1, lng)
-                wks.update_cell(row_num, idx_src + 1, "ArcGIS")
-                print(f"  [成功] 行號 {row_num}: {addr} ➔ ({lat}, {lng})")
+                update_queue.append(gspread.Cell(row=row_num, col=idx_lat + 1, value=lat))
+                update_queue.append(gspread.Cell(row=row_num, col=idx_lng + 1, value=lng))
+                update_queue.append(gspread.Cell(row=row_num, col=idx_src + 1, value="ArcGIS"))
+                print(f"  [成功] 行號 {row_num}: {addr} ➔ ({lat}, {lng})", flush=True)
                 success_count += 1
             else:
-                print(f"  [失敗] 行號 {row_num}: {addr}")
+                print(f"  [失敗] 行號 {row_num}: {addr}", flush=True)
 
-        print(f"\n[任務結束] 成功補救 {success_count} 筆座標。")
+            # 每 30 筆寫入一次，避免 429 錯誤
+            if len(update_queue) >= 90:
+                print(f"\n[系統] 正在批次寫入雲端...", flush=True)
+                wks.update_cells(update_queue)
+                update_queue = []
+                time.sleep(1)
+
+        # 寫入最後剩餘的資料
+        if update_queue:
+            wks.update_cells(update_queue)
+
+        print(f"\n[任務結束] 成功補救 {success_count} 筆座標。", flush=True)
 
     except Exception as e:
-        print(f"❌ 錯誤: {e}")
+        print(f"❌ 錯誤: {e}", flush=True)
 
 if __name__ == "__main__":
     run_arcgis_task()

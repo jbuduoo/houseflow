@@ -3,6 +3,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import time
 import importlib.util
+import re
 
 # 取得金鑰檔案的絕對路徑
 _base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,13 +31,13 @@ def run_reverse_geocoder():
         client = gspread.authorize(creds)
         wks = client.open_by_key(SHEET_KEY).sheet1
         all_rows = wks.get_all_values()
-        print(f"[系統] 成功連接試算表，共 {len(all_rows) - 1} 筆資料。")
+        print(f"[系統] 成功連接試算表，共 {len(all_rows) - 1} 筆資料。", flush=True)
     except Exception as e:
-        print(f"❌ 雲端連線失敗: {e}")
+        print(f"❌ 雲端連線失敗: {e}", flush=True)
         return
 
     if not all_rows:
-        print("❌ 試算表沒有資料。")
+        print("❌ 試算表沒有資料。", flush=True)
         return
 
     headers = all_rows[0]
@@ -45,7 +46,7 @@ def run_reverse_geocoder():
         IDX_OBJ_LAT = headers.index("物件緯度")
         IDX_OBJ_LON = headers.index("物件經度")
     except ValueError as e:
-        print(f"❌ 找不到必要的標題欄位: {e}，請確認 A1 列的標題文字是否正確。")
+        print(f"❌ 找不到必要的標題欄位: {e}，請確認 A1 列的標題文字是否正確。", flush=True)
         return
 
     try: IDX_V_SOURCE = headers.index("來源仲介")
@@ -60,7 +61,7 @@ def run_reverse_geocoder():
     update_cells = []
     updated_count = 0
 
-    print("[情報] 開始掃描並進行座標反查...\n")
+    print("[情報] 開始掃描並進行座標反查...\n", flush=True)
 
     interrupted = False
     try:
@@ -81,36 +82,51 @@ def run_reverse_geocoder():
             coord_src = get_val(IDX_Z_COORD_SRC)
             rev_addr = get_val(IDX_Y_REV_ADDR)
         
-            # 條件：有經緯度、座標來源不是 ArcGIS、且反查地址為空
-            if lat_str and lon_str and coord_src != "ArcGIS" and not rev_addr:
+            # 條件：有經緯度、來源是信義或永慶 (模糊匹配)、且反查地址目前為空
+            is_target = any(k in source for k in ["信義", "永慶"]) or any(k in coord_src for k in ["信義", "永慶"])
+            
+            if lat_str and lon_str and is_target and not rev_addr:
                 try:
-                    lat = float(lat_str)
-                    lng = float(lon_str)
+                    # 強效清理：只留下數字、點、負號
+                    lat_clean = re.sub(r'[^0-9.-]', '', lat_str)
+                    lon_clean = re.sub(r'[^0-9.-]', '', lon_str)
+                    
+                    if not lat_clean or not lon_clean:
+                        print(f"  × [ID:{row[0]}] 座標無效: {lat_str}, {lon_str}", flush=True)
+                        continue
+
+                    lat = float(lat_clean)
+                    lng = float(lon_clean)
                     address, was_cached = reverse_geocode(lat, lng)
                 
                     if "Error" not in address and "not found" not in address:
-                        # 寫入 Y 欄 (不再加後綴)
+                        # 寫入 Y 欄
                         update_cells.append(gspread.Cell(row=row_num, col=IDX_Y_REV_ADDR + 1, value=address))
                         updated_count += 1
                     
                         source_str = "[快取]" if was_cached else "[API]"
-                        print(f"  √ [ID:{row[0]}] {source_str} 反查成功: {lat},{lng} ➔ {address}")
-                    
-                        if not was_cached:
-                            time.sleep(1.2) # API Rate limit (1 request per second)
+                        print(f"  OK [ID:{row[0]}] {source_str} 反查成功: {lat},{lng} ➔ {address}", flush=True)
                     else:
-                        print(f"  × [ID:{row[0]}] 反查失敗: {address}")
-                except ValueError:
-                    print(f"  × [ID:{row[0]}] 座標格式錯誤: {lat_str}, {lon_str}")
+                        print(f"  FAILED [ID:{row[0]}] 反查失敗: {address}", flush=True)
+                    
+                    # 無論成功失敗，只要有呼叫 API 就必須休息
+                    if not was_cached:
+                        if "429" in address:
+                            print("  WAIT [警告] 偵測到 429 流量管制，冷卻中 (10秒)...", flush=True)
+                            time.sleep(10)
+                        else:
+                            time.sleep(1.5) # 遵守 Nominatim 1秒/筆 規定
+                except Exception as e:
+                    print(f"  ERROR [ID:{row[0]}] 發生錯誤: {str(e)[:50]} (lat='{lat_str}')", flush=True)
 
             # 批次寫入
             if len(update_cells) >= 50:
-                print(f"\n[系統] 觸發分批備份：正在寫入 {len(update_cells)} 筆地址...")
+                print(f"\n[系統] 觸發分批備份：正在寫入 {len(update_cells)} 筆地址...", flush=True)
                 try:
                     wks.update_cells(update_cells)
                     update_cells.clear()
                 except Exception as e:
-                    print(f"💥 分批寫入失敗: {e}")
+                    print(f"💥 分批寫入失敗: {e}", flush=True)
                     time.sleep(3)
 
     except KeyboardInterrupt:
@@ -126,9 +142,9 @@ def run_reverse_geocoder():
             print(f"💥 寫入失敗: {e}")
 
     if updated_count == 0:
-        print("\n✅ 沒有需要反查地址的資料。")
+        print("\n[OK] 沒有需要反查地址的資料。", flush=True)
     else:
-        print(f"\n🎉 執行完畢！本次總共反查並填寫了 {updated_count} 筆地址！")
+        print(f"\n[DONE] 執行完畢！本次總共反查並填寫了 {updated_count} 筆地址！", flush=True)
 
 if __name__ == "__main__":
     run_reverse_geocoder()

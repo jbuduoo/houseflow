@@ -2,8 +2,8 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderInsufficientPrivileges
 import time
 
-# 1. 複用 Nominatim 實體並使用更具唯一性的 User-Agent
-UA = "HouseFlow_Taiwan_Scraper_9e46e488"
+# 1. 使用隨機 User-Agent 降低封鎖機率
+UA = f"HouseFlow_App_{int(time.time())}"
 geolocator = Nominatim(user_agent=UA)
 
 # 2. 實作座標快取，包含錯誤結果也進行短暫紀錄
@@ -46,10 +46,6 @@ def reverse_geocode(lat, lng):
             return res, False
             
     except GeocoderInsufficientPrivileges:
-        res = "Error: 403 Forbidden"
-        address_cache[coord_key] = res
-        return res, False
+        return "Error: 403 Forbidden", False
     except Exception as e:
-        res = f"Error: {str(e)}"
-        address_cache[coord_key] = res
-        return res, False
+        return f"Error: {str(e)}", False

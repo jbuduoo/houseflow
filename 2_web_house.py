@@ -419,6 +419,12 @@ if True:
     # 以精確座標分群（相同座標才合併）
     grouped_houses = defaultdict(list)
     for index, row in df.iterrows():
+        # 過濾 AI 研判為「查無」的物件
+        ai_result = str(row.get('AI 結論', '')).strip()
+        search_addr = str(row.get('查地址', '')).strip()
+        if ai_result == "查無" or search_addr == "查無":
+            continue
+            
         try:
             h_lat = float(row.get('物件緯度', ''))
             h_lng = float(row.get('物件經度', ''))
