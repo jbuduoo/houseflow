@@ -268,7 +268,7 @@ def parse_agent_info(json_str, row_idx):
                 list_html += f'''
                 <div style="display:flex; align-items:center; gap:6px; padding:2px 0; border-bottom:1px solid #f9f9f9; width:100%; box-sizing:border-box;">
                     <div style="background:#f0f2f6; color:#555; font-size:10px; padding:1px 4px; border-radius:3px; text-align:center; min-width:38px; font-weight:bold; white-space:nowrap;">{name}</div>
-                    <a href="{l_url}" target="_blank" title="{l_title}" style="flex:1; font-size:11px; color:#1a73e8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">🔗 {l_title}</a>
+                    <a href="{l_url}" target="_blank" rel="noopener noreferrer" title="{l_title}" onclick="window.open('{l_url}', '_blank'); return false;" style="flex:1; font-size:11px; color:#1a73e8; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">🔗 {l_title}</a>
                     <div style="font-size:11px; color:#d32f2f; font-weight:bold; text-align:right; min-width:60px; white-space:nowrap;">{l_price}</div>
                     <div style="font-size:9px; color:#888; text-align:right; min-width:55px; white-space:nowrap;">{l_time}</div>
                 </div>
@@ -492,8 +492,8 @@ if True:
             img_tag = f"<img src='{img_url}' loading='lazy' style='width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;'>" if len(img_url) > 10 else ""
             links_block = f"""
                 <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
-                    <a href='{web_link}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
-                    <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>📑 騰本連結</a>
+                    <a href='{web_link}' target='_blank' rel='noopener noreferrer' onclick="window.open('{web_link}', '_blank'); return false;" style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>👉 同行網頁</a>
+                    <a href='{transcript_url}' target='_blank' rel='noopener noreferrer' onclick="window.open('{transcript_url}', '_blank'); return false;" style='font-size:15px; font-weight:bold; color:#1976d2; text-decoration:none;'>📑 謄本連結</a>
                 </div>
             """
             
@@ -507,7 +507,7 @@ if True:
             # --- 單筆物件 Popup HTML ---
             item_html = f"""
                 {img_tag}
-                <a href='{web_link}' target='_blank' style='text-decoration:none;'>
+                <a href='{web_link}' target='_blank' rel='noopener noreferrer' onclick="window.open('{web_link}', '_blank'); return false;" style='text-decoration:none;'>
                     <span style='font-size:18px; font-weight:bold; color:#1a73e8; margin-bottom:8px; display:block; line-height:1.3;'>{row['案件名稱']} 🔗</span>
                 </a>
                 <div style='font-size:15px; color:#333; line-height:1.6;'>
@@ -517,7 +517,7 @@ if True:
                 </div>
                 {agent_pills_html}
                 <div style='margin-top:10px; border-top:1px solid #ccc; padding-top:10px; display:flex; gap:15px;'>
-                    <a href='{transcript_url}' target='_blank' style='font-size:15px; font-weight:bold; color:#d32f2f; text-decoration:none;'>📑 謄本連結</a>
+                    <a href='{transcript_url}' target='_blank' rel='noopener noreferrer' onclick="window.open('{transcript_url}', '_blank'); return false;" style='font-size:15px; font-weight:bold; color:#d32f2f; text-decoration:none;'>📑 謄本連結</a>
                 </div>
             """
             
