@@ -108,30 +108,39 @@ def run_map_scraper():
                                 const titleEl = row.querySelector('.objtitle a');
                                 if (!titleEl) return;
                             
-                                // 蒐集 .brandA 各仲介的連結（依 data-id 分組）
+                                // 蒐集 .brandA 各仲介的詳細資訊
                                 const peerLinksData = [];
                                 const brandA = row.querySelector('.brandA');
                                 if (brandA) {
                                     const brandDivs = brandA.querySelectorAll(':scope > div[data-id]');
                                     brandDivs.forEach(div => {
-                                        const dataId = div.getAttribute('data-id') || '';
-                                        const text = div.innerText.trim();
-                                        const img = div.querySelector('img');
-                                        const alt = img ? (img.getAttribute('alt') || img.getAttribute('title') || '') : '';
-                                    
-                                        let sourceName = dataId;
-                                        // 如果 data-id 是純數字且不是 591，代表它可能是系統內部的流水號
-                                        // 這時我們優先拿裡面的文字或圖片標題來當作仲介名稱
-                                        if (/^\\d+$/.test(dataId) && dataId !== '591') {
-                                            if (alt) sourceName = alt;
-                                            else if (text) sourceName = text;
+                                        const agentNameRaw = div.getAttribute('data-id') || '';
+                                        const agentName = agentNameRaw.replace(/\s/g, ''); // 去除全形半形空白
+                                        
+                                        const listings = [];
+                                        const listingBlocks = div.children;
+                                        for (let block of listingBlocks) {
+                                            const linkEl = block.querySelector('a[href]');
+                                            if (linkEl) {
+                                                // 尋找價格：包含「萬」或顏色為紅色的 span
+                                                const spans = Array.from(block.querySelectorAll('span'));
+                                                const priceEl = spans.find(s => s.innerText.includes('萬') || s.style.color.includes('df4041'));
+                                                // 尋找時間：包含「前」或「刊登」的 span
+                                                const timeEl = spans.find(s => s.innerText.includes('前') || s.innerText.includes('刊登'));
+                                                
+                                                listings.push({
+                                                    title: linkEl.innerText.trim(),
+                                                    price: priceEl ? priceEl.innerText.replace(/-/g, '').trim() : "",
+                                                    time: timeEl ? timeEl.innerText.trim() : "",
+                                                    url: linkEl.href
+                                                });
+                                            }
                                         }
-                                    
-                                        const firstLink = div.querySelector('a[href]');
-                                        if (firstLink && firstLink.href && firstLink.href.startsWith('http')) {
+
+                                        if (listings.length > 0) {
                                             peerLinksData.push({
-                                                source: sourceName.trim(),
-                                                url: firstLink.href
+                                                name: agentName,
+                                                listings: listings
                                             });
                                         }
                                     });
@@ -152,7 +161,7 @@ def run_map_scraper():
                         }""")
                         break  # 成功取到資料跳出迴圈
                     except Exception as e:
-                        print("  [系統] 頁面載入/刷新中，等待重試...")
+                        print(f"  [系統] 頁面解析錯誤: {e}, 等待重試...")
                         time.sleep(1.5)
 
                 if raw_items: last_first_id = raw_items[0]['id']
@@ -164,7 +173,6 @@ def run_map_scraper():
                     price = (re.search(r'(\d+)\s*萬', txt) or re.search(r'萬\s*(\d+)', txt)).group(1) if re.search(r'\d+', txt) else ""
                     size = (re.search(r'(\d+\.?\d*)\s*坪', txt) or re.search(r'坪\s*(\d+\.?\d*)', txt)).group(1) if re.search(r'\d+', txt) else ""
                 
-                    # --- [修正點] 型態抓取強化：加入「電梯」關鍵字，優先從「類型/格局」文字中尋找 ---
                     h_type = (re.search(r'(電梯|公寓|大樓|店面|透天|套房|辦公|廠辦|土地|車位)', txt) or ["", ""])[0]
                     if not h_type and "房" in txt: h_type = "大樓"
 
@@ -177,29 +185,72 @@ def run_map_scraper():
                     pattern = (re.search(r'(\d+房\d+廳\d+衛)', txt) or re.search(r'(\d+房)', txt) or ["", ""])[0]
                     is_dlg = "Y" if ("委託" in item['textContent'] or "已接" in item['textContent']) else "N"
 
-                    # 依優先序選出最佳仲介連結與來源名稱
-                    peer_link, source_broker = select_best_peer(item.get('peerLinksData', []))
+                    # 整理同行 JSON 格式
+                    import json
+                    from datetime import timedelta
+                    
+                    def parse_relative_time(time_str):
+                        """將 '4小時前刊登', '1天前' 等轉換為具體日期 MM-DD"""
+                        if not time_str: return ""
+                        now = datetime.now()
+                        try:
+                            # 提取數字
+                            num = int(re.search(r'\d+', time_str).group())
+                            if '小時' in time_str:
+                                target_date = now - timedelta(hours=num)
+                            elif '天' in time_str:
+                                target_date = now - timedelta(days=num)
+                            elif '個月' in time_str:
+                                target_date = now - timedelta(days=num * 30)
+                            elif '週' in time_str or '周' in time_str:
+                                target_date = now - timedelta(weeks=num)
+                            else:
+                                target_date = now
+                            return target_date.strftime("%Y-%m-%d")
+                        except:
+                            if '剛剛' in time_str: return now.strftime("%Y-%m-%d")
+                            return time_str # 若無法解析則傳回原字串
+                    
+                    # 處理並轉換時間
+                    enriched_peer_data = item.get('peerLinksData', [])
+                    for agent in enriched_peer_data:
+                        for lst in agent.get('listings', []):
+                            lst['time'] = parse_relative_time(lst['time'])
+
+                    peer_json_str = json.dumps(enriched_peer_data, ensure_ascii=False)
+                    
+                    # 舊有的 select_best_peer 邏輯保留
+                    legacy_peer_data = []
+                    for agent in enriched_peer_data:
+                        for lst in agent.get('listings', []):
+                            legacy_peer_data.append({'source': agent['name'], 'url': lst['url']})
+                    
+                    peer_link, source_broker = select_best_peer(legacy_peer_data)
                 
                     row_data = [
-                        item['id'],    # A 物件ID
-                        item['name'],  # B 物件名稱
-                        item['img'],   # C 圖片
-                        clean_addr,    # D 地址
-                        price,         # E 價格
-                        size,          # F 坪數
-                        h_type,        # G 類型
-                        f_cur,         # H 樓層(現)
-                        f_total,       # I 樓層(總)
-                        pattern,       # J 格局
-                        peer_link,     # K 仲介外部連結（依優先序）
-                        f"https://app.houseflow.tw/HOUSE/ExploreHouseNew?A10OnLineId={item['id']}",  # L houseflow連結
-                        "", "", "",    # M N O 保留欄
-                        is_dlg,        # P 委託狀態
-                        current_time,  # Q 更新時間
-                        "", "", "", "",# R S T U 保留欄
-                        source_broker, # V 來源仲介
-                        item['lat'],   # W HF緯度
-                        item['lng']    # X HF經度
+                        item['id'],    # A (0) 物件ID
+                        item['name'],  # B (1) 物件名稱
+                        item['img'],   # C (2) 圖片
+                        clean_addr,    # D (3) 地址
+                        price,         # E (4) 價格
+                        size,          # F (5) 坪數
+                        h_type,        # G (6) 類型
+                        f_cur,         # H (7) 樓層(現)
+                        f_total,       # I (8) 樓層(總)
+                        pattern,       # J (9) 格局
+                        peer_link,     # K (10) 仲介外部連結
+                        f"https://app.houseflow.tw/HOUSE/ExploreHouseNew?A10OnLineId={item['id']}",  # L (11)
+                        "", "", "",    # M N O (12-14)
+                        is_dlg,        # P (15) 委託狀態
+                        current_time,  # Q (16) 更新時間
+                        "", "", "", "",# R S T U (17-20)
+                        source_broker, # V (21) 來源仲介
+                        item['lat'],   # W (22) HF緯度
+                        item['lng'],   # X (23) HF經度
+                        "",            # Y (24) 反查地址
+                        "",            # Z (25) 座標來源
+                        "",            # AA (26) AI 結論
+                        peer_json_str  # AB (27) 同行資訊 JSON 格式
                     ]
                     all_data.append({"id": item['id'], "row_data": row_data})
                     print(f"  √ [{item['id']}] {item['name']} | 類型: {h_type} | 來源: {source_broker or '未知'} | 地址: {clean_addr} | HF緯: {item['lat']}")
@@ -239,8 +290,8 @@ def run_map_scraper():
                 # 2. 檢查試算表是否已存在
                 if tid in existing_ids:
                     row_idx = existing_ids[tid]
-                    # 更新基礎欄位：地址(4)、類型(7)、網址(11,12)、來源仲介(22)
-                    for col_idx in [4, 7, 11, 12]:
+                    # 更新基礎欄位：地址(4)、類型(7)、網址(11,12)、來源仲介(22)、同行資訊 JSON(28)
+                    for col_idx in [4, 7, 11, 12, 28]:
                         val = d[col_idx-1]
                         if val: update_cells.append(gspread.Cell(row=row_idx, col=col_idx, value=val))
 

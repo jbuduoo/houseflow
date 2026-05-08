@@ -20,22 +20,27 @@ def main():
     print("  [2] 🗑️  去除重複 ID (2_deduplicate.py)")
     print("  [3] 📍 地址補完 (3_address.py)")
     print("  [4] 🏠 戶籍/座標擷取 (4_registry.py)")
-    print("  [5] 🗺️  補齊座標 1.取得信義座標 2.取得的地址及戶籍地址沒有座標的物件 (5_coords.py)")
+    print("  [5a] 🗺️  取得信義座標 (5a_sinyi.py)")
+    print("  [5b] 🗺️  取得永慶座標 (5b_yungching.py)")
+    print("  [5c] 🗺️  取得其他仲介座標 (5c_others.py)")
+    print("  [5d] 📍 ArcGIS 地址定位 (5d_arcgis.py)")
     print("  [6] 📍 地址補完 (座標反查) (6_reverse_geocode.py)")
     print("  [7] 🤖 AI 綜合研判 (7_smart_analysis.py)")
-    print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7)")
+    print("  [0] ⚡ 全部依序執行 (1 -> 2 -> 3 -> 4 -> 5a -> 5b -> 5c -> 5d -> 6 -> 7)")
 
     try:
-        user_input = input("\n請輸入功能編號: ").strip()
+        user_input = input("\n請輸入功能編號 (可多選，例如 5a 5b): ").strip()
         if not user_input:
             print("❌ 未輸入任何選項，程式結束。")
             return
 
         # 處理輸入選項
-        if "0" in user_input.split():
-            selected_tasks = ["1", "2", "3", "4", "5", "6", "7"]
+        raw_tasks = user_input.split()
+        selected_tasks = []
+        if "0" in raw_tasks:
+            selected_tasks = ["1", "2", "3", "4", "5a", "5b", "5c", "5d", "6", "7"]
         else:
-            selected_tasks = user_input.split()
+            selected_tasks = raw_tasks
 
         total_start_time = time.time()
 
@@ -47,14 +52,9 @@ def main():
                 house_module.run_map_scraper()
 
             elif task == "2":
-                print("\n>>> [執行功能 2] 啟動去除重複 ID 程式 (2_deduplicate.py)...")
+                print("\n>>> [執行功能 2] 啟動去重整合程式 (2_deduplicate.py)...")
                 dedup_module = import_script("core/2_deduplicate.py")
-                # utils_deduplicate.py 執行時不跳過確認，依原設計
-                try:
-                    dedup_module.run_deduplicator()
-                except TypeError:
-                    # 如果 run_deduplicator 沒有參數
-                    dedup_module.run_deduplicator()
+                dedup_module.run_deduplicator()
 
             elif task == "3":
                 print("\n>>> [執行功能 3] 啟動地址補完程序 (3_address.py)...")
@@ -66,10 +66,25 @@ def main():
                 reg_module = import_script("core/4_registry.py")
                 reg_module.run_fetcher()
 
-            elif task == "5":
-                print("\n>>> [執行功能 5] 啟動純補座標 (5_coords.py)...")
-                coords_module = import_script("core/5_coords.py")
-                coords_module.run_coords_enricher()
+            elif task == "5a":
+                print("\n>>> [執行功能 5a] 啟動信義座標擷取 (5a_sinyi.py)...")
+                sinyi_module = import_script("core/5a_sinyi.py")
+                sinyi_module.run_sinyi_task()
+
+            elif task == "5b":
+                print("\n>>> [執行功能 5b] 啟動永慶座標擷取 (5b_yungching.py)...")
+                yung_module = import_script("core/5b_yungching.py")
+                yung_module.run_yungching_coords_task()
+
+            elif task == "5c":
+                print("\n>>> [執行功能 5c] 啟動其他仲介座標擷取 (5c_others.py)...")
+                others_module = import_script("core/5c_others.py")
+                others_module.run_others_task()
+
+            elif task == "5d":
+                print("\n>>> [執行功能 5d] 啟動 ArcGIS 地址定位 (5d_arcgis.py)...")
+                arcgis_module = import_script("core/5d_arcgis.py")
+                arcgis_module.run_arcgis_task()
 
             elif task == "6":
                 print("\n>>> [執行功能 6] 啟動座標反查地址 (6_reverse_geocode.py)...")
