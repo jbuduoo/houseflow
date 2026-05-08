@@ -16,11 +16,33 @@ import threading
 start_time = time.time()
 
 # --- 設定頁面資訊 ---
-st.set_page_config(page_title="房仲攻堅地圖 (實景排版版)", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="住通地產開發地圖", layout="wide", initial_sidebar_state="collapsed")
+
+# --- 0. 手機端環境最佳化與 LINE 偵測 ---
+is_line = False
+try:
+    ua = st.context.headers.get("User-Agent", "")
+    if "Line" in ua:
+        is_line = True
+except:
+    pass
+
+if is_line:
+    st.warning("⚠️ 偵測到您正使用 LINE 瀏覽器。為了讓「同行網頁」與「謄本」能另開新頁，請點選右上角 [三個點] ➜ 選擇 [使用預設瀏覽器開啟]。")
 
 # --- 0. 注入自定義 CSS ---
 st.markdown("""
     <style>
+    /* 強制提升地圖點擊層級，解決行動版無法點擊標記的問題 */
+    .stFolium, div[data-testid="stHtml"] {
+        z-index: 1 !important;
+        pointer-events: auto !important;
+    }
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px !important;
+        padding: 5px !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2) !important;
+    }
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
@@ -567,8 +589,8 @@ if True:
         '''
         folium.Marker(
             location=[final_lat, final_lng],
-            popup=folium.Popup(combined_popup_html, max_width=400),
-            icon=folium.DivIcon(html=marker_html, icon_anchor=(19, 46))
+            popup=folium.Popup(combined_popup_html, max_width=320), # iPhone 11 螢幕較窄，縮小寬度
+            icon=folium.DivIcon(html=marker_html, icon_anchor=(19, 38)) # 稍微上移錨點，確保手指點擊更精準
         ).add_to(marker_group)
 
         # 畫出綠色戶籍標記 (升級為圖釘型)
